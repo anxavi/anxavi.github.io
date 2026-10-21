@@ -1,0 +1,3036 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>ARACHNE — Armario Inteligente & Estilismo Prescriptivo</title>
+  
+  <!-- Tipografía Editorial y de Sistema -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,400;1,600&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            arachne: {
+              canvas: '#FBFBF9',
+              card: '#FFFFFF',
+              surface: '#F4F3EF',
+              border: '#E8E6DF',
+              borderHover: '#D4D0C5',
+              ink: '#18181B',
+              inkMuted: '#71717A',
+              inkSubtle: '#A1A1AA',
+              sage: '#3D5A4C',
+              sageLight: '#EBF1ED',
+              terracotta: '#C88D66',
+              terracottaLight: '#F8F1EB',
+              accentSand: '#E5DFD3'
+            }
+          },
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+            serif: ['"Playfair Display"', 'Georgia', 'serif']
+          },
+          boxShadow: {
+            subtle: '0 1px 3px rgba(24, 24, 27, 0.04), 0 1px 2px rgba(24, 24, 27, 0.02)',
+            editorial: '0 8px 30px rgba(24, 24, 27, 0.06)',
+            floating: '0 14px 44px rgba(24, 24, 27, 0.12)',
+            prominent: '0 10px 25px -3px rgba(200, 141, 102, 0.35), 0 4px 6px -4px rgba(200, 141, 102, 0.2)'
+          }
+        }
+      }
+    };
+  </script>
+
+  <!-- React 18 & ReactDOM 18 UMD -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <!-- Babel Standalone para JSX en navegador -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    body {
+      background-color: #FBFBF9;
+      color: #18181B;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      touch-action: manipulation;
+    }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    @keyframes fadeInScale {
+      from { opacity: 0; transform: scale(0.97); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    .animate-fadeInScale {
+      animation: fadeInScale 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-slideUp {
+      animation: slideUp 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    .crossfade-img {
+      transition: opacity 1.2s ease-in-out, transform 8s ease-out;
+    }
+  </style>
+</head>
+<body class="selection:bg-arachne-terracottaLight selection:text-arachne-terracotta">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useMemo, useRef } = React;
+
+    // =========================================================================
+    // 1. SISTEMA DE ICONOGRAFÍA SVG EDITORIAL REDISEÑADO & ICONOS NATIVOS
+    // =========================================================================
+    const Icon = ({ name, className = "w-5 h-5", ...props }) => {
+      const icons = {
+        // Icono Inicio Arquitectónico (#svg-inicio-b) para pestaña 'Hoy'
+        homeToday: (
+          <g strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5">
+            <path d="M3 20.5h18" />
+            <path d="M4 20.5V9.5L12 3.5l8 6v11" />
+            <path d="M12 11.5v9" />
+          </g>
+        ),
+        // Icono Marcador con Línea (#svg-guardado-a) para pestaña 'Guardados'
+        bookmarkGuardados: (
+          <g strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5">
+            <path d="M7 3h10a1 1 0 0 1 1 1v17.5l-6-4-6 4V4a1 1 0 0 1 1-1z" />
+            <line x1="10" y1="8" x2="14" y2="8" />
+          </g>
+        ),
+        // Icono Cámara Telemétrica Destacada para Botón Central Flotante
+        cameraCenter: (
+          <g strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5">
+            <rect x="2" y="6" width="20" height="13.5" rx="2.5" />
+            <circle cx="10" cy="12.75" r="4.25" />
+            <circle cx="10" cy="12.75" r="1.5" />
+            <rect x="17.25" y="8" width="2.5" height="1.75" rx="0.5" />
+            <line x1="5.5" y1="6" x2="5.5" y2="4" />
+          </g>
+        ),
+        // Chispa estelar refinada
+        sparkles: (
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z" />
+        ),
+        // Percha boutique
+        hanger: (
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 4.5a2.25 2.25 0 012.25 2.25c0 .883-.51 1.648-1.25 2.015L3 13.5v1.5h18v-1.5L13 8.765A2.25 2.25 0 0112 4.5zM12 15v4.5" />
+        ),
+        // Camiseta / Top
+        shirt: (
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M3.75 8.25L7.5 4.5h2.25a2.25 2.25 0 004.5 0h2.25l3.75 3.75-2.25 3-2.25-1.5v9h-9v-9l-2.25 1.5-2.25-3z" />
+        ),
+        // Etiqueta
+        tag: (
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3zM6 6h.008v.008H6V6z" />
+        ),
+        // Bandeja de subida
+        upload: (
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+        ),
+        // Usuario
+        user: (
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+        ),
+        // Check
+        check: (
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4.5 12.75l6 6 9-13.5" />
+        ),
+        // Refrescar
+        refresh: (
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+        ),
+        // Clima
+        cloudRain: (
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M2.25 15a4.5 4.5 0 004.5 4.5H18a3.75 3.75 0 001.332-7.257 3 3 0 00-3.758-3.848 5.25 5.25 0 00-10.233 2.33A4.502 4.502 0 002.25 15zM8.25 19.5l-.75 2.25m4.5-2.25l-.75 2.25m4.5-2.25l-.75 2.25" />
+        ),
+        // Cerrar
+        close: (
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.7" d="M6 18L18 6M6 6l12 12" />
+        ),
+        // Flecha derecha
+        arrowRight: (
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.6" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+        ),
+        // Flecha izquierda
+        arrowLeft: (
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.6" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+        ),
+        // Escudo
+        shield: (
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+        ),
+        // Edición
+        edit: (
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+        ),
+        // Más
+        plus: (
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.5v15m7.5-7.5h-15" />
+        ),
+        // Información
+        info: (
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
+        ),
+        // Salir
+        logOut: (
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
+        )
+      };
+      return (
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className={className} {...props}>
+          {icons[name] || null}
+        </svg>
+      );
+    };
+
+    const I18N = {
+      es: {
+        platformTag: "Armario Inteligente",
+        loginHeroSubtitle: "Tu armario inteligente. Tu estilo diario.",
+        loginInvitePrompt: "Acceso exclusivo para testers autorizados",
+        loginInputPlaceholder: "correo@invitado.com",
+        loginButton: "Entrar al Armario",
+        quickTestersLabel: "Seleccionar perfil de prueba rápido:",
+        navToday: "Hoy",
+        navWardrobe: "Armario",
+        navCapture: "Captura",
+        navSaved: "Guardados",
+        navProfile: "Perfil",
+        weatherConditionDesc: "Cielo cubierto · Brisa fresca",
+        weatherFavorable: "Favorable",
+        outfitTodayHeading: "OUTFIT DE HOY",
+        eventOffice: "Oficina & Trabajo",
+        eventCasual: "Casual Urbano",
+        eventDinner: "Cena & Noche",
+        eventWeekend: "Fin de Semana",
+        dualJourneyTitle: "Jornada Doble / Transición",
+        dualOffDinner: "Oficina ➔ Cena",
+        dualWorkGym: "Trabajo ➔ Gimnasio",
+        dualCasualParty: "Casual ➔ Noche",
+        generateActionBtn: "Diseñar",
+        generatingMessage: "Diseñando tu outfit...",
+        engineCognitiveTag: "Motor Cognitivo ARACHNE",
+        calibratingTitle: "Calibrando sinergia y contexto",
+        emptyTodayTitle: "Sin outfit activo",
+        emptyTodayPrompt: "Configura tu ocasión y pulsa Diseñar para generar la propuesta de hoy.",
+        calibratedProposalTitle: "Propuesta Calibrada",
+        harmonyScoreLabel: "Armonía",
+        modularLayerTag: "Capa Modular de Transición",
+        singleRoutineTag: "Rutina Única",
+        editorialHeading: "Justificación Editorial",
+        swipeRightLabel: "Preseleccionar / Editar",
+        swipeLeftLabel: "Descartar / Afinar",
+        tweakDrawerTitle: "Afinar Intencionalidad del Outfit",
+        tweakDrawerSubtitle: "Indica cómo orientar la nueva propuesta:",
+        tweakWarmer: "Más abrigado",
+        tweakFormal: "Más formal",
+        tweakShoes: "Cambiar calzado",
+        tweakLighter: "Más ligero",
+        vibeActive: "Comodidad Activa",
+        vibeEffortless: "Effortless Chic",
+        wardrobeTitle: "Armario Digital",
+        wardrobeSub: "prendas catalogadas listas para combinar.",
+        addBasicsBtn: "Añadir Esenciales",
+        catAll: "Todas",
+        catTop: "Superiores",
+        catBottom: "Inferiores",
+        catOuter: "Abrigo",
+        catShoes: "Calzado",
+        availableState: "Disponible",
+        unavailableState: "No disponible",
+        toggleAvailability: "Cambiar disponibilidad",
+        sizeLabel: "Talla",
+        brandLabel: "Marca",
+        fabricLabel: "Tejido",
+        formalityLabel: "Formalidad",
+        timesWornLabel: "puestas registradas",
+        editGarmentTitle: "Editar Prenda",
+        garmentDetailTitle: "Ficha Técnica",
+        editAttributesBtn: "Editar Atributos",
+        garmentNameLabel: "Nombre de la Prenda",
+        cancelBtn: "Cancelar",
+        saveChanges: "Guardar Cambios",
+        historyTitle: "Mis Outfits Guardados",
+        historySub: "Colección de combinaciones aprobadas y registros de uso.",
+        savedEmptyTitle: "No hay looks guardados todavía",
+        savedEmptySub: "Los outfits que confirmes con 'Me lo puse hoy' aparecerán aquí.",
+        profileTitle: "Perfil Personal",
+        profileSub: "Tus datos de estilo y actividad en ARACHNE.",
+        editProfileBtn: "Editar Perfil",
+        saveProfileBtn: "Guardar Perfil",
+        generatedOutfitsMetric: "Generados",
+        confirmedOutfitsMetric: "Vestidos",
+        closetPiecesMetric: "Prendas",
+        yearsOldSuffix: "años",
+        preferredAestheticTitle: "Estética Preferida",
+        preferredAestheticSub: "Múltiple selección",
+        profileNameLabel: "Nombre",
+        profileLastNameLabel: "Apellidos",
+        profileAgeLabel: "Edad",
+        profileEmailLabel: "Email de contacto",
+        profilePhotoLabel: "Foto de Perfil",
+        logoutBtn: "Cerrar Sesión",
+        harmonyModalTitle: "Desglose de Armonía Estética",
+        harmonyGlobalScore: "Puntuación Global",
+        harmonyOptimal: "Armonía Óptima",
+        harmonyModalSub: "Evaluación matemática y de estilo según las reglas de combinación de ARACHNE.",
+        harmonyFactorColor: "Cohesión Cromática y Subtonos",
+        harmonyFactorThermal: "Confort Térmico Meteorológico",
+        harmonyFactorOccasion: "Adecuación de Formalidad y Agenda",
+        harmonyFactorSilhouette: "Proporción de Silueta y Caída",
+        closeBtn: "Cerrar",
+        scanTitle: "Nueva Prenda",
+        scanSub: "Captura rápida y catalogación asistida.",
+        captureStudioPrompt: "¿Cómo prefieres añadir la prenda?",
+        takePhotoOption: "Tomar Foto con la Cámara",
+        takePhotoSub: "Usa la cámara de tu móvil para capturar la prenda",
+        uploadPhotoOption: "Subir desde la Galería",
+        uploadPhotoSub: "Selecciona una imagen guardada en tu dispositivo",
+        categoryLabel: "Categoría",
+        optTop: "Superior (Camisetas, camisas, blusas)",
+        optBottom: "Inferior (Pantalones, faldas)",
+        optOuter: "Abrigo (Chaquetas, abrigos, blazers)",
+        optFootwear: "Calzado (Zapatillas, botas, zapatos)",
+        optAccessory: "Accesorio (Bolsos, bufandas, etc.)",
+        retakePhotoBtn: "Rehacer Foto",
+        saveToWardrobeBtn: "Guardar en mi Armario",
+        basicsModalTitle: "Añadir Esenciales",
+        basicsModalSub: "Elige una prenda básica unisex para personalizarla y añadirla a tu armario.",
+        genericStepTitle: "Tipos de Prendas Básicas",
+        customizeStepTitle: "Personalizar Prenda",
+        backToTypesBtn: "Volver a Tipos",
+        saveEssentialBtn: "Guardar en Armario",
+        selectedLookHeading: "Look Seleccionado",
+        editOutfitBtn: "Editar piezas de este look",
+        wearConfirmedBtn: "Me lo puse hoy",
+        inspectUnifiedTitle: "Detalle del Outfit",
+        inspectPiecesHeading: "Prendas que componen este look",
+        inspectTagsHeading: "Etiquetas de Ocasión y Lugar",
+        addTagPlaceholder: "Añadir etiqueta de ocasión (ej. Cena en Born)...",
+        addTagBtn: "Etiquetar",
+        brandRequiredAlert: "La marca es obligatoria para indexar la prenda",
+        garmentSavedAlert: "Prenda añadida a tu armario",
+        garmentUpdatedAlert: "Prenda actualizada correctamente",
+        tagAddedAlert: "Etiqueta añadida al look",
+        profileUpdatedAlert: "Perfil actualizado con éxito",
+        privacyBadge: "Imágenes de dormitorios purgadas. Cero metadatos privados en servidores."
+      },
+      en: {
+        platformTag: "Smart Wardrobe",
+        loginHeroSubtitle: "Your smart wardrobe. Your daily style.",
+        loginInvitePrompt: "Exclusive access for authorized testers",
+        loginInputPlaceholder: "guest@tester.com",
+        loginButton: "Enter Wardrobe",
+        quickTestersLabel: "Select quick test profile:",
+        navToday: "Today",
+        navWardrobe: "Wardrobe",
+        navCapture: "Capture",
+        navSaved: "Saved",
+        navProfile: "Profile",
+        weatherConditionDesc: "Overcast sky · Cool breeze",
+        weatherFavorable: "Optimal",
+        outfitTodayHeading: "TODAY'S OUTFIT",
+        eventOffice: "Office & Work",
+        eventCasual: "Urban Casual",
+        eventDinner: "Dinner & Night",
+        eventWeekend: "Weekend Chill",
+        dualJourneyTitle: "Dual Routine / Transition",
+        dualOffDinner: "Office ➔ Dinner",
+        dualWorkGym: "Work ➔ Gym",
+        dualCasualParty: "Casual ➔ Night",
+        generateActionBtn: "Design",
+        generatingMessage: "Designing your outfit...",
+        engineCognitiveTag: "ARACHNE Cognitive Engine",
+        calibratingTitle: "Calibrating synergy and context",
+        emptyTodayTitle: "No active outfit",
+        emptyTodayPrompt: "Configure your context and tap Design to generate today's look.",
+        calibratedProposalTitle: "Calibrated Proposal",
+        harmonyScoreLabel: "Harmony",
+        modularLayerTag: "Modular Transition Layer",
+        singleRoutineTag: "Single Routine",
+        editorialHeading: "Editorial Rationale",
+        swipeRightLabel: "Preselect / Edit",
+        swipeLeftLabel: "Discard / Refine",
+        tweakDrawerTitle: "Refine Outfit Intent",
+        tweakDrawerSubtitle: "Select how to adjust the new proposal:",
+        tweakWarmer: "Warmer layers",
+        tweakFormal: "More formal",
+        tweakShoes: "Change shoes",
+        tweakLighter: "Lighter",
+        vibeActive: "Active Comfort",
+        vibeEffortless: "Effortless Chic",
+        wardrobeTitle: "Digital Wardrobe",
+        wardrobeSub: "cataloged garments ready to combine.",
+        addBasicsBtn: "Add Essentials",
+        catAll: "All",
+        catTop: "Tops",
+        catBottom: "Bottoms",
+        catOuter: "Outerwear",
+        catShoes: "Footwear",
+        availableState: "Available",
+        unavailableState: "Not available",
+        toggleAvailability: "Change availability",
+        sizeLabel: "Size",
+        brandLabel: "Brand",
+        fabricLabel: "Fabric",
+        formalityLabel: "Formality",
+        timesWornLabel: "times worn",
+        editGarmentTitle: "Edit Garment",
+        garmentDetailTitle: "Technical Sheet",
+        editAttributesBtn: "Edit Attributes",
+        garmentNameLabel: "Garment Name",
+        cancelBtn: "Cancel",
+        saveChanges: "Save Changes",
+        historyTitle: "My Saved Outfits",
+        historySub: "Approved outfit collection and wear timeline.",
+        savedEmptyTitle: "No saved looks yet",
+        savedEmptySub: "Outfits you confirm with 'Wore this today' will appear here.",
+        profileTitle: "Personal Profile",
+        profileSub: "Your style profile and activity in ARACHNE.",
+        editProfileBtn: "Edit Profile",
+        saveProfileBtn: "Save Profile",
+        generatedOutfitsMetric: "Generated",
+        confirmedOutfitsMetric: "Worn",
+        closetPiecesMetric: "Garments",
+        yearsOldSuffix: "years old",
+        preferredAestheticTitle: "Preferred Aesthetic",
+        preferredAestheticSub: "Multiple choice",
+        profileNameLabel: "First Name",
+        profileLastNameLabel: "Last Name",
+        profileAgeLabel: "Age",
+        profileEmailLabel: "Contact Email",
+        profilePhotoLabel: "Profile Picture",
+        logoutBtn: "Log Out",
+        harmonyModalTitle: "Aesthetic Harmony Breakdown",
+        harmonyGlobalScore: "Global Score",
+        harmonyOptimal: "Optimal Harmony",
+        harmonyModalSub: "Algorithmic and stylistic evaluation calculated according to ARACHNE rules.",
+        harmonyFactorColor: "Chromatic Cohesion & Undertones",
+        harmonyFactorThermal: "Weather Thermal Comfort",
+        harmonyFactorOccasion: "Occasion & Formality Fit",
+        harmonyFactorSilhouette: "Silhouette Proportion & Fit",
+        closeBtn: "Close",
+        scanTitle: "New Garment",
+        scanSub: "Quick mobile capture and assisted cataloging.",
+        captureStudioPrompt: "How would you like to add this piece?",
+        takePhotoOption: "Take Photo with Camera",
+        takePhotoSub: "Use your device camera to capture garment",
+        uploadPhotoOption: "Upload from Gallery",
+        uploadPhotoSub: "Select an image stored on your device",
+        categoryLabel: "Category",
+        optTop: "Top (T-shirts, shirts, blouses)",
+        optBottom: "Bottom (Pants, skirts)",
+        optOuter: "Outerwear (Jackets, coats, blazers)",
+        optFootwear: "Footwear (Sneakers, boots, shoes)",
+        optAccessory: "Accessory (Bags, scarves, etc.)",
+        retakePhotoBtn: "Retake Photo",
+        saveToWardrobeBtn: "Save to Wardrobe",
+        basicsModalTitle: "Add Essentials",
+        basicsModalSub: "Choose a unisex essential piece to customize and add to your wardrobe.",
+        genericStepTitle: "Essential Piece Types",
+        customizeStepTitle: "Customize Piece",
+        backToTypesBtn: "Back to Types",
+        saveEssentialBtn: "Save to Wardrobe",
+        selectedLookHeading: "Selected Look",
+        editOutfitBtn: "Swap pieces in this look",
+        wearConfirmedBtn: "Wore this today",
+        inspectUnifiedTitle: "Outfit Details",
+        inspectPiecesHeading: "Pieces composing this look",
+        inspectTagsHeading: "Occasion & Location Tags",
+        addTagPlaceholder: "Add context tag (e.g., El Born dinner)...",
+        addTagBtn: "Add Tag",
+        brandRequiredAlert: "Brand is required to catalog garment",
+        garmentSavedAlert: "Garment added to your wardrobe",
+        garmentUpdatedAlert: "Garment updated successfully",
+        tagAddedAlert: "Tag added to look",
+        profileUpdatedAlert: "Profile updated successfully",
+        privacyBadge: "Bedroom photos purged on-device. Zero private background telemetry."
+      },
+      ca: {
+        platformTag: "Armari Intel·ligent",
+        loginHeroSubtitle: "El teu armari intel·ligent. El teu estil diari.",
+        loginInvitePrompt: "Accés exclusiu per a testers autoritzats",
+        loginInputPlaceholder: "correu@convidat.com",
+        loginButton: "Entrar a l'Armari",
+        quickTestersLabel: "Seleccionar perfil de prova ràpid:",
+        navToday: "Avui",
+        navWardrobe: "Armari",
+        navCapture: "Captura",
+        navSaved: "Guardats",
+        navProfile: "Perfil",
+        weatherConditionDesc: "Cel cobert · Brisa fresca",
+        weatherFavorable: "Favorable",
+        outfitTodayHeading: "OUTFIT D'AVUI",
+        eventOffice: "Oficina & Feina",
+        eventCasual: "Casual Urbà",
+        eventDinner: "Sopar & Nit",
+        eventWeekend: "Cap de Setmana",
+        dualJourneyTitle: "Jornada Doble / Transició",
+        dualOffDinner: "Oficina ➔ Sopar",
+        dualWorkGym: "Feina ➔ Gimnàs",
+        dualCasualParty: "Casual ➔ Nit",
+        generateActionBtn: "Dissenyar",
+        generatingMessage: "Dissenyant el teu outfit...",
+        engineCognitiveTag: "Motor Cognitiu ARACHNE",
+        calibratingTitle: "Calibrant sinergia i context",
+        emptyTodayTitle: "Sense outfit actiu",
+        emptyTodayPrompt: "Configura la teva ocasió i prem Dissenyar per generar la proposta d'avui.",
+        calibratedProposalTitle: "Proposta Calibrada",
+        harmonyScoreLabel: "Harmonia",
+        modularLayerTag: "Capa Modular de Transició",
+        singleRoutineTag: "Rutina Única",
+        editorialHeading: "Justificació Editorial",
+        swipeRightLabel: "Preseleccionar / Editar",
+        swipeLeftLabel: "Descartar / Afinar",
+        tweakDrawerTitle: "Afinar Intencionalitat de l'Outfit",
+        tweakDrawerSubtitle: "Indica com orientar la nova proposta:",
+        tweakWarmer: "Més abrigat",
+        tweakFormal: "Més formal",
+        tweakShoes: "Canviar calçat",
+        tweakLighter: "Més lleuger",
+        vibeActive: "Comoditat Activa",
+        vibeEffortless: "Effortless Chic",
+        wardrobeTitle: "Armari Digital",
+        wardrobeSub: "peces catalogades a punt per a combinar.",
+        addBasicsBtn: "Afegir Essencials",
+        catAll: "Totes",
+        catTop: "Superiors",
+        catBottom: "Inferiors",
+        catOuter: "Abric",
+        catShoes: "Calçat",
+        availableState: "Disponible",
+        unavailableState: "No disponible",
+        toggleAvailability: "Canviar disponibilitat",
+        sizeLabel: "Talla",
+        brandLabel: "Marca",
+        fabricLabel: "Teixit",
+        formalityLabel: "Formalitat",
+        timesWornLabel: "usos registrats",
+        editGarmentTitle: "Editar Peça",
+        garmentDetailTitle: "Fitxa Tècnica",
+        editAttributesBtn: "Editar Atributs",
+        garmentNameLabel: "Nom de la Peça",
+        cancelBtn: "Cancel·lar",
+        saveChanges: "Desar Canvis",
+        historyTitle: "Els Meus Outfits Desats",
+        historySub: "Col·lecció de combinacions aprovades i registre d'usos.",
+        savedEmptyTitle: "No hi ha looks desats encara",
+        savedEmptySub: "Els outfits que confirmis amb 'Me'l poso avui' apareixeran aquí.",
+        profileTitle: "Perfil Personal",
+        profileSub: "Les teves dades d'estil i activitat a ARACHNE.",
+        editProfileBtn: "Editar Perfil",
+        saveProfileBtn: "Desar Perfil",
+        generatedOutfitsMetric: "Generats",
+        confirmedOutfitsMetric: "Vestits",
+        closetPiecesMetric: "Peces",
+        yearsOldSuffix: "anys",
+        preferredAestheticTitle: "Estètica Preferida",
+        preferredAestheticSub: "Múltiple selecció",
+        profileNameLabel: "Nom",
+        profileLastNameLabel: "Cognoms",
+        profileAgeLabel: "Edat",
+        profileEmailLabel: "Email de contacte",
+        profilePhotoLabel: "Foto de Perfil",
+        logoutBtn: "Tancar Sessió",
+        harmonyModalTitle: "Desglossament d'Harmonia Estètica",
+        harmonyGlobalScore: "Puntuació Global",
+        harmonyOptimal: "Harmonia Òptima",
+        harmonyModalSub: "Avaluació matemàtica i d'estil calculada segons les regles d'ARACHNE.",
+        harmonyFactorColor: "Cohesió Cromàtica i Subtons",
+        harmonyFactorThermal: "Confort Tèrmic Meteorològic",
+        harmonyFactorOccasion: "Adequació de Formalitat i Agenda",
+        harmonyFactorSilhouette: "Proporció de Silueta i Caiguda",
+        closeBtn: "Tancar",
+        scanTitle: "Nova Peça",
+        scanSub: "Captura ràpida i catalogació assistida.",
+        captureStudioPrompt: "Com prefereixes afegir la peça?",
+        takePhotoOption: "Fer Foto amb la Càmera",
+        takePhotoSub: "Fes servir la càmera del mòbil per capturar la peça",
+        uploadPhotoOption: "Pujar des de la Galeria",
+        uploadPhotoSub: "Selecciona una imatge desada al teu dispositiu",
+        categoryLabel: "Categoria",
+        optTop: "Superior (Samarretes, camises, bruses)",
+        optBottom: "Inferior (Pantalons, faldilles)",
+        optOuter: "Abric (Jaquetes, abrics, blazers)",
+        optFootwear: "Calçat (Vambes, botes, sabates)",
+        optAccessory: "Accessori (Bosses, bufandes, etc.)",
+        retakePhotoBtn: "Refer Foto",
+        saveToWardrobeBtn: "Desar a l'Armari",
+        basicsModalTitle: "Afegir Essencials",
+        basicsModalSub: "Tria una peça bàsica unisex per personalitzar-la i afegir-la al teu armari.",
+        genericStepTitle: "Tipus de Peces Bàsiques",
+        customizeStepTitle: "Personalitzar Peça",
+        backToTypesBtn: "Tornar a Tipus",
+        saveEssentialBtn: "Desar a l'Armari",
+        selectedLookHeading: "Look Seleccionat",
+        editOutfitBtn: "Editar peces d'aquest look",
+        wearConfirmedBtn: "Me'l poso avui",
+        inspectUnifiedTitle: "Detall de l'Outfit",
+        inspectPiecesHeading: "Peces que componen aquest look",
+        inspectTagsHeading: "Etiquetes d'Ocasió i Lloc",
+        addTagPlaceholder: "Afegir etiqueta d'ocasió (ex. Sopar al Born)...",
+        addTagBtn: "Etiquetar",
+        brandRequiredAlert: "La marca és obligatòria per indexar la peça",
+        garmentSavedAlert: "Peça afegida al teu armari",
+        garmentUpdatedAlert: "Peça actualitzada correctament",
+        tagAddedAlert: "Etiqueta afegida al look",
+        profileUpdatedAlert: "Perfil actualitzat amb èxit",
+        privacyBadge: "Imatges d'habitació purgades. Zero metadades privades a servidors."
+      }
+    };
+
+    const FASHION_TIPS = [
+      {
+        tag: { es: "Regla del Sandwich", en: "Sandwich Rule", ca: "Regla del Sandwich" },
+        text: {
+          es: "Equilibra el color del calzado coordinándolo con la capa superior o chaqueta para un look cohesivo instantáneo.",
+          en: "Balance shoe color by coordinating it with your top layer or jacket for an instant cohesive look.",
+          ca: "Equilibra el color del calçat coordinant-lo amb la capa superior o jaqueta per a un look cohesiu instantani."
+        }
+      },
+      {
+        tag: { es: "Proporción 1/3 - 2/3", en: "1/3 - 2/3 Proportion", ca: "Proporció 1/3 - 2/3" },
+        text: {
+          es: "Evita cortar la silueta a la mitad exacta (50/50). Un talle alto o una chaqueta crop alarga visualmente las piernas.",
+          en: "Avoid cutting the silhouette exactly in half (50/50). A high waist or crop jacket visually elongates legs.",
+          ca: "Evita tallar la silueta a la meitat exacta (50/50). Un talle alt o una jaqueta crop allarga visualment les cames."
+        }
+      },
+      {
+        tag: { es: "Fórmula de Texturas", en: "Texture Formula", ca: "Fórmula de Textures" },
+        text: {
+          es: "Mezcla al menos dos texturas opuestas (ej. lana estructurada + popelín suave) para aportar tridimensionalidad y volumen.",
+          en: "Mix at least two contrasting textures (e.g. structured wool + crisp poplin) to provide visual depth.",
+          ca: "Barreja almenys dues textures oposades (ex. llana estructurada + popelín suau) per aportar tridimensionalitat."
+        }
+      },
+      {
+        tag: { es: "Contraste Tonal", en: "Tonal Contrast", ca: "Contrast Tonal" },
+        text: {
+          es: "Los neutros fríos (gris marengo, azul marino) ganan calidez serena al combinarse con tonos arena o cuero miel.",
+          en: "Cool neutrals (charcoal, navy) gain serene warmth when paired with sand tones or honey leather.",
+          ca: "Els neutres freds (gris marengo, blau marí) guanyen calidesa serena en combinar-se amb tons sorra o cuir mel."
+        }
+      },
+      {
+        tag: { es: "Formalidad Híbrida", en: "Hybrid Formality", ca: "Formalitat Híbrida" },
+        text: {
+          es: "Restar rigidez a una blazer con camiseta pesada y zapatillas blancas es el canon del 'smart casual' contemporáneo.",
+          en: "Dressing down a tailored blazer with a heavy tee and white sneakers is the cornerstone of modern smart casual.",
+          ca: "Restar rigidesa a una blazer amb samarreta densa i vambes blanques és el cànon del 'smart casual' contemporani."
+        }
+      },
+      {
+        tag: { es: "Tendencia: Color Pop", en: "Trend: Color Pop", ca: "Tendència: Color Pop" },
+        text: {
+          es: "En una base completamente monocromática o neutra, introduce un único accesorio de color vibrante para focalizar la mirada.",
+          en: "In a fully monochromatic or neutral base, introduce a single vibrant accessory to direct the gaze.",
+          ca: "En una base completament monocromàtica o neutra, introdueix un sol accessori de color vibrant per focalitzar la mirada."
+        }
+      }
+    ];
+
+    // Parrilla de Botones Grandes Genéricos Unisex para "Añadir Esenciales"
+    const GENERIC_ESSENTIAL_TEMPLATES = [
+      {
+        id: "gen_tee",
+        category: "top",
+        icon: "shirt",
+        name: { es: "Camiseta Básica Unisex", en: "Basic Unisex T-Shirt", ca: "Samarreta Bàsica Unisex" },
+        desc: { es: "Algodón de alto gramaje, cuello redondo regular", en: "Heavyweight cotton, regular crewneck", ca: "Cotó d'alt gramatge, coll rodó regular" },
+        defaultFabric: "100% Algodón peinado",
+        defaultFormality: 3,
+        defaultHex: "#18181B",
+        imageUrl: "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "gen_shirt",
+        category: "top",
+        icon: "hanger",
+        name: { es: "Camisa Clásica Popelín", en: "Classic Poplin Shirt", ca: "Camisa Clàssica Popelín" },
+        desc: { es: "Corte recto estructurado, cuello italiano o abotonado", en: "Structured straight fit, buttoned collar", ca: "Tall recte estructurat, coll italià o botons" },
+        defaultFabric: "Algodón popelín hilado",
+        defaultFormality: 6,
+        defaultHex: "#93C5FD",
+        imageUrl: "https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "gen_chino",
+        category: "bottom",
+        icon: "tag",
+        name: { es: "Pantalón Chino / Sastre", en: "Chino / Tailored Trousers", ca: "Pantaló Xino / Sastre" },
+        desc: { es: "Tiro medio con pinzas, caída recta versátil", en: "Mid-rise pleated, versatile straight drape", ca: "Tir mitjà amb pinces, caiguda recta versàtil" },
+        defaultFabric: "Sarga de algodón elástica",
+        defaultFormality: 6,
+        defaultHex: "#D7C4B7",
+        imageUrl: "https://images.unsplash.com/photo-1473966968600-fa801b869a1a?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "gen_denim",
+        category: "bottom",
+        icon: "tag",
+        name: { es: "Pantalón Vaquero / Jeans", en: "Classic Denim Jeans", ca: "Pantaló Vaquer / Jeans" },
+        desc: { es: "Denim auténtico sin roturas, lavado neutro atemporal", en: "Authentic raw or rinsed denim, timeless cut", ca: "Denim autèntic sense trencaments, rentat neutre" },
+        defaultFabric: "Denim 100% algodón rígido",
+        defaultFormality: 4,
+        defaultHex: "#3B82F6",
+        imageUrl: "https://images.unsplash.com/photo-1542272604-780c96856592?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "gen_blazer",
+        category: "outerwear",
+        icon: "hanger",
+        name: { es: "Blazer Recta / Americana", en: "Straight Tailored Blazer", ca: "Blazer Recta / Americana" },
+        desc: { es: "Hombros estructurados, botonadura simple elegante", en: "Clean structured shoulder, single breasted", ca: "Espatlles estructurades, botonadura simple" },
+        defaultFabric: "Lana fría de sastrería",
+        defaultFormality: 8,
+        defaultHex: "#27272A",
+        imageUrl: "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "gen_jacket",
+        category: "outerwear",
+        icon: "hanger",
+        name: { es: "Cazadora / Sobrecamisa", en: "Overshirt / Transition Jacket", ca: "Caçadora / Sobrecamisa" },
+        desc: { es: "Prenda de entretiempo con bolsillos de parche", en: "Patch-pocket versatile mid-layer jacket", ca: "Peça d'entretemps amb butxaques de pegat" },
+        defaultFabric: "Algodón canvas denso",
+        defaultFormality: 5,
+        defaultHex: "#C2A383",
+        imageUrl: "https://images.unsplash.com/photo-1576995853123-5a10305d93c0?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "gen_sneaker",
+        category: "footwear",
+        icon: "sparkles",
+        name: { es: "Zapatillas Blancas Neutras", en: "Minimalist White Sneakers", ca: "Vambes Blanques Neutres" },
+        desc: { es: "Perfil bajo pulido, suela cupsole contemporánea", en: "Low profile leather, clean silhouette", ca: "Perfil baix polit, sola cupsole contemporània" },
+        defaultFabric: "Piel de curtición vegetal",
+        defaultFormality: 5,
+        defaultHex: "#F1F5F9",
+        imageUrl: "https://images.unsplash.com/photo-1560769629-975ec94e6a86?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "gen_boot",
+        category: "footwear",
+        icon: "sparkles",
+        name: { es: "Botines Chelsea / Mocasines", en: "Chelsea Boots / Loafers", ca: "Botins Chelsea / Mocassins" },
+        desc: { es: "Silueta sobria de piel para transiciones formales", en: "Classic leather profile for smart casual dapper", ca: "Silueta sòbria de pell per a transicions formals" },
+        defaultFabric: "Cuero curtido encerado",
+        defaultFormality: 7,
+        defaultHex: "#451A03",
+        imageUrl: "https://images.unsplash.com/photo-1533867617858-e7b97e060509?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "gen_bag",
+        category: "accessory",
+        icon: "bookmarkGuardados",
+        name: { es: "Bolso Tote / Mochila Minimal", en: "Everyday Tote / City Pack", ca: "Bossa Tote / Motxilla Mínima" },
+        desc: { es: "Accesorio funcional de líneas arquitectónicas", en: "Architectural clean accessory for daily carry", ca: "Accessori funcional de línies arquitectòniques" },
+        defaultFabric: "Lona hidrófuga y cuero",
+        defaultFormality: 5,
+        defaultHex: "#18181B",
+        imageUrl: "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=600&q=80"
+      }
+    ];
+
+    const INITIAL_WARDROBE = [
+      {
+        id: "g_01",
+        name: "Blazer Recta de Lana Fría",
+        brand: "COS",
+        size: "48",
+        category: "outerwear",
+        subCategory: "blazer",
+        color: { primaryHex: "#27272A", undertone: "neutral", family: "grey" },
+        fabric: "100% Lana fría estructurada",
+        formality: 8,
+        thermalRange: { minTempC: 12, maxTempC: 22 },
+        state: "available",
+        timesWorn: 14,
+        imageUrl: "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "g_02",
+        name: "Camiseta Algodón Pesado 240g",
+        brand: "Arket",
+        size: "M",
+        category: "top",
+        subCategory: "t-shirt",
+        color: { primaryHex: "#FFFFFF", undertone: "cold", family: "white" },
+        fabric: "Algodón orgánico peinado",
+        formality: 4,
+        thermalRange: { minTempC: 14, maxTempC: 28 },
+        state: "available",
+        timesWorn: 26,
+        imageUrl: "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "g_03",
+        name: "Pantalón Sastre Plisado Wide",
+        brand: "Sandro",
+        size: "40",
+        category: "bottom",
+        subCategory: "trousers",
+        color: { primaryHex: "#475569", undertone: "cold", family: "grey" },
+        fabric: "Sarga de mezcla con caída",
+        formality: 7,
+        thermalRange: { minTempC: 10, maxTempC: 24 },
+        state: "available",
+        timesWorn: 18,
+        imageUrl: "https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "g_04",
+        name: "Zapatillas Piel Perfil Bajo",
+        brand: "Veja",
+        size: "42 EU",
+        category: "footwear",
+        subCategory: "sneakers",
+        color: { primaryHex: "#F1F5F9", undertone: "neutral", family: "white" },
+        fabric: "Cuero curtido vegetal",
+        formality: 5,
+        thermalRange: { minTempC: 8, maxTempC: 26 },
+        state: "available",
+        timesWorn: 45,
+        imageUrl: "https://images.unsplash.com/photo-1560769629-975ec94e6a86?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "g_05",
+        name: "Camisa Oxford Raya Diplomática",
+        brand: "Massimo Dutti",
+        size: "39",
+        category: "top",
+        subCategory: "shirt",
+        color: { primaryHex: "#93C5FD", undertone: "cold", family: "blue" },
+        fabric: "Algodón Oxford hilado",
+        formality: 6,
+        thermalRange: { minTempC: 12, maxTempC: 24 },
+        state: "available",
+        timesWorn: 9,
+        imageUrl: "https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "g_06",
+        name: "Trench Clásico Gabardina",
+        brand: "Burberry Heritage",
+        size: "50",
+        category: "outerwear",
+        subCategory: "trench",
+        color: { primaryHex: "#C2A383", undertone: "warm", family: "earth" },
+        fabric: "Gabardina hidrófuga de algodón",
+        formality: 8,
+        thermalRange: { minTempC: 8, maxTempC: 18 },
+        state: "available",
+        timesWorn: 11,
+        imageUrl: "https://images.unsplash.com/photo-1544022613-e87ca75a784a?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "g_07",
+        name: "Mocasines Penny Piel Pulida",
+        brand: "Berwick 1707",
+        size: "42 EU",
+        category: "footwear",
+        subCategory: "loafers",
+        color: { primaryHex: "#451A03", undertone: "warm", family: "earth" },
+        fabric: "Piel boxcalf con suela cuero",
+        formality: 9,
+        thermalRange: { minTempC: 12, maxTempC: 26 },
+        state: "available",
+        timesWorn: 6,
+        imageUrl: "https://images.unsplash.com/photo-1533867617858-e7b97e060509?auto=format&fit=crop&w=600&q=80"
+      }
+    ];
+
+    const FASHION_EDITORIAL_IMAGES = [
+      "https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=1000&q=80",
+      "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=1000&q=80",
+      "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1000&q=80",
+      "https://images.unsplash.com/photo-1485230895905-ec40ba36b9bc?auto=format&fit=crop&w=1000&q=80"
+    ];
+
+    const PRECONFIGURED_TESTERS = [
+      { name: "Álex V.", email: "alex.v@arachne.style" },
+      { name: "Clara S.", email: "clara.s@arachne.style" },
+      { name: "Marc R.", email: "marc.r@arachne.style" }
+    ];
+
+    const AESTHETIC_OPTIONS = [
+      { id: "minimalist", label: { es: "Minimalista", en: "Minimalist", ca: "Minimalista" } },
+      { id: "urbanCasual", label: { es: "Casual Urbano", en: "Urban Casual", ca: "Casual Urbà" } },
+      { id: "smartElegant", label: { es: "Smart Elegante", en: "Smart Elegant", ca: "Smart Elegant" } },
+      { id: "activeComfort", label: { es: "Deportivo / Cómodo", en: "Active / Comfort", ca: "Esportiu / Còmode" } },
+      { id: "vintageRetro", label: { es: "Vintage / Retro", en: "Vintage / Retro", ca: "Vintage / Retro" } },
+      { id: "sophisticated", label: { es: "Sofisticado", en: "Sofisticat", ca: "Sofisticat" } }
+    ];
+
+    function ArachneApp() {
+      // Estado de Autenticación
+      const [isAuthenticated, setIsAuthenticated] = useState(false);
+      
+      // Perfil de Usuario 100% editable
+      const [currentUser, setCurrentUser] = useState({
+        name: "Álex",
+        lastName: "Vila",
+        age: 27,
+        email: "alex.v@arachne.style",
+        photoUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80",
+        aesthetics: ["minimalist", "urbanCasual"]
+      });
+      const [isEditingProfile, setIsEditingProfile] = useState(false);
+      const [tempProfileData, setTempProfileData] = useState(null);
+
+      // Estado de Idioma
+      const [lang, setLang] = useState('es');
+      const t = I18N[lang];
+
+      // Carrusel de imágenes de moda en pantalla de login
+      const [carouselIdx, setCarouselIdx] = useState(0);
+      useEffect(() => {
+        if (isAuthenticated) return;
+        const timer = setInterval(() => {
+          setCarouselIdx(prev => (prev + 1) % FASHION_EDITORIAL_IMAGES.length);
+        }, 4200);
+        return () => clearInterval(timer);
+      }, [isAuthenticated]);
+
+      // Navegación de Vistas ('today' | 'wardrobe' | 'history' | 'profile')
+      const [currentView, setCurrentView] = useState('today');
+
+      // Inventario de Armario & Historial Semilla Vinculado con prendas reales
+      const [wardrobe, setWardrobe] = useState(INITIAL_WARDROBE);
+      const [history, setHistory] = useState([
+        {
+          id: "hist_01",
+          date: "Ayer, 08:45",
+          occasion: "Oficina & Trabajo",
+          tags: ["Oficina Eixample", "Reunión"],
+          garments: [INITIAL_WARDROBE[0], INITIAL_WARDROBE[1], INITIAL_WARDROBE[2], INITIAL_WARDROBE[3]],
+          garmentNames: ["Blazer Recta de Lana Fría", "Camiseta Algodón Pesado 240g", "Pantalón Sastre Plisado Wide", "Zapatillas Piel Perfil Bajo"],
+          editorial: "Contraste sereno entre la estructura de la sastrería y la relajación de la zapatilla blanca.",
+          harmonyScore: 96
+        }
+      ]);
+
+      // Métrica de Outfits Generados
+      const [generatedCount, setGeneratedCount] = useState(1);
+
+      // Estado de Generación, Tips y Modal de Armonía
+      const [isGenerating, setIsGenerating] = useState(false);
+      const [showHarmonyModal, setShowHarmonyModal] = useState(false);
+      const [currentTipIndex, setCurrentTipIndex] = useState(0);
+
+      //      // Rotación de tips calibrada a 3900ms para permitir lectura asimilada
+      useEffect(() => {
+        let interval;
+        if (isGenerating) {
+          interval = setInterval(() => {
+            setCurrentTipIndex(prev => (prev + 1) % FASHION_TIPS.length);
+          }, 3900);
+        }
+        return () => clearInterval(interval);
+      }, [isGenerating]);
+
+      // Notificaciones Toast
+      const [toast, setToast] = useState(null);
+      const showToast = (msg) => {
+        setToast(msg);
+        setTimeout(() => setToast(null), 3200);
+      };
+
+      // Contexto Meteorológico
+      const [weather] = useState({
+        tempC: 17,
+        condition: "cloudy",
+        rainProb: 15,
+        location: "Barcelona, ES"
+      });
+
+      // Configuración de la Lanzadera de Estilo ("Hoy")
+      const [eventContext, setEventContext] = useState('office');
+      const [dualJourney, setDualJourney] = useState(false);
+      const [dualJourneyType, setDualJourneyType] = useState('dinner');
+
+      // Outfit Prescrito
+      const [currentOutfit, setCurrentOutfit] = useState(null);
+
+      // Estado Interactivo de Swipe con Detección Vertical Anti-Conflicto
+      const [swipeState, setSwipeState] = useState({
+        offsetX: 0,
+        isDragging: false,
+        startX: 0,
+        startY: 0,
+        isHorizontal: null
+      });
+      const [showPieceEditorModal, setShowPieceEditorModal] = useState(false);
+      const [swappingCategory, setSwappingCategory] = useState(null);
+      const [showTweakDrawer, setShowTweakDrawer] = useState(false);
+
+      // Modales de Armario & Ficha
+      const [selectedGarmentModal, setSelectedGarmentModal] = useState(null);
+      const [isEditingGarment, setIsEditingGarment] = useState(false);
+      const [editedGarmentData, setEditedGarmentData] = useState(null);
+
+      //      // Estados para "Añadir Esenciales" con botones interactivos y reinicio continuo
+      const [showBasicsModal, setShowBasicsModal] = useState(false);
+      const [essentialFlowStep, setEssentialFlowStep] = useState('grid'); // 'grid' | 'customize'
+      const [customizingEssential, setCustomizingEssential] = useState(null);
+
+      // Modal de Inspección y Etiquetado en "Guardados"
+      const [inspectedLook, setInspectedLook] = useState(null);
+      const [newTagInput, setNewTagInput] = useState("");
+
+      // Modal / Flujo de Captura
+      const [showCaptureModal, setShowCaptureModal] = useState(false);
+      const [captureStage, setCaptureStage] = useState('select'); // 'select' | 'preview_edit'
+      const [capturedPhotoUrl, setCapturedPhotoUrl] = useState(null);
+      const [capturedGarmentData, setCapturedGarmentData] = useState({
+        name: "",
+        brand: "",
+        size: "M",
+        category: "top",
+        fabric: "Algodón orgánico",
+        formality: 5
+      });
+      const fileInputRef = useRef(null);
+      const cameraInputRef = useRef(null);
+
+      // Filtro de Categoría en Armario
+      const [wardrobeFilter, setWardrobeFilter] = useState('all');
+
+      //      // =========================================================================
+      // MOTOR HÍBRIDO EN DOS ETAPAS (Poda Heurística + Estilista Cognitivo - 6.8s)
+      // =========================================================================
+      const generatePrescription = (extraIntent = null) => {
+        setIsGenerating(true);
+        setShowTweakDrawer(false);
+
+        // Calibración cognitiva de 6800 ms (6.8 segundos) exactos
+        setTimeout(() => {
+          // ETAPA 1: PODA DETERMINISTA (Prendas disponibles y confort térmico)
+          const availablePool = wardrobe.filter(g => g.state === 'available');
+          
+          let thermalPool = availablePool.filter(g => 
+            weather.tempC >= (g.thermalRange.minTempC - 4) &&
+            weather.tempC <= (g.thermalRange.maxTempC + 4)
+          );
+
+          if (thermalPool.length < 3) thermalPool = availablePool;
+
+          // ETAPA 2: CURADURÍA ESTILÍSTICA COGNITIVA
+          const tops = thermalPool.filter(g => g.category === 'top');
+          const bottoms = thermalPool.filter(g => g.category === 'bottom');
+          const outers = thermalPool.filter(g => g.category === 'outerwear');
+          const shoes = thermalPool.filter(g => g.category === 'footwear');
+
+          let chosenTop = tops[0] || availablePool.find(g => g.category === 'top');
+          let chosenBottom = bottoms[0] || availablePool.find(g => g.category === 'bottom');
+          let chosenOuter = outers[0] || null;
+          let chosenShoes = shoes[0] || availablePool.find(g => g.category === 'footwear');
+
+          // Aplicación de intenciones de afinación (Tweak Intentions)
+          if (extraIntent === 'warmer' && outers.length > 0) {
+            chosenOuter = outers.find(o => o.subCategory === 'trench') || outers[0];
+          } else if (extraIntent === 'formal') {
+            chosenTop = tops.find(t => t.subCategory === 'shirt') || tops[0];
+            chosenShoes = shoes.find(s => s.subCategory === 'loafers') || shoes[0];
+          } else if (extraIntent === 'shoes' && shoes.length > 1) {
+            chosenShoes = shoes.find(s => s.id !== chosenShoes.id) || shoes[1];
+          } else if (extraIntent === 'lighter') {
+            chosenOuter = null;
+          } else if (extraIntent === 'active') {
+            chosenTop = tops.find(t => t.subCategory === 't-shirt') || tops[0];
+            chosenShoes = shoes.find(s => s.subCategory === 'sneakers') || shoes[0];
+          }
+
+          // Capa modular de transición para doble evento
+          let transitionLayer = null;
+          if (dualJourney) {
+            if (dualJourneyType === 'dinner') {
+              transitionLayer = {
+                title: lang === 'es' ? "Capa de Transición para Cena" : (lang === 'en' ? "Transition Layer for Dinner" : "Capa de Transició per Sopar"),
+                item: wardrobe.find(g => g.id === 'g_01') || chosenOuter
+              };
+            } else if (dualJourneyType === 'gym') {
+              transitionLayer = {
+                title: lang === 'es' ? "Recambio Deportivo (Gimnasio)" : (lang === 'en' ? "Active Gear (Gym)" : "Recanvi Esportiu (Gimnàs)"),
+                item: { name: "Bolsa Gym + Calzado Deportivo", brand: "Pack Técnico", size: "Única" }
+              };
+            } else {
+              transitionLayer = {
+                title: lang === 'es' ? "Detalle Informal para Noche" : (lang === 'en' ? "Night Detail" : "Detall Informal per Nit"),
+                item: wardrobe.find(g => g.category === 'outerwear')
+              };
+            }
+          }
+
+          // Justificación editorial concisa
+          let rationale = "";
+          const bottomName = chosenBottom?.name.toLowerCase() || 'pantalón';
+          if (lang === 'es') {
+            rationale = `Sinergia tonal entre la base neutra y la caída del ${bottomName}. Equilibrio calibrado para ${weather.tempC}°C en agenda de ${eventContext === 'office' ? 'oficina' : 'ciudad'}.`;
+          } else if (lang === 'en') {
+            rationale = `Tonal synergy between the neutral base and ${bottomName} silhouette. Calibrated for ${weather.tempC}°C in a ${eventContext} routine.`;
+          } else {
+            rationale = `Sinergia tonal entre la base neutra i la caiguda del ${bottomName}. Equilibri de confort per a ${weather.tempC}°C en agenda d'${eventContext}.`;
+          }
+
+          const breakdown = {
+            colorimetry: 98,
+            thermalFit: 94,
+            occasionFit: 96,
+            silhouetteProportion: 95
+          };
+
+          setCurrentOutfit({
+            id: "outfit_" + Date.now(),
+            top: chosenTop,
+            bottom: chosenBottom,
+            outerwear: chosenOuter,
+            footwear: chosenShoes,
+            transitionLayer: transitionLayer,
+            editorial: rationale,
+            harmonyScore: 96,
+            breakdown: breakdown
+          });
+
+          setGeneratedCount(prev => prev + 1);
+          setSwipeState({ offsetX: 0, isDragging: false, startX: 0, startY: 0, isHorizontal: null });
+          setIsGenerating(false);
+        }, 6800);
+      };
+
+      //      // -----------------------------------------------------------------------
+      // GESTIÓN TÁCTIL CON PRIORIZACIÓN DE SCROLL VERTICAL (ANTI-CONFLICTO)
+      // -----------------------------------------------------------------------
+      const handleTouchStart = (e) => {
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        setSwipeState({
+          offsetX: 0,
+          isDragging: true,
+          startX: clientX,
+          startY: clientY,
+          isHorizontal: null
+        });
+      };
+
+      const handleTouchMove = (e) => {
+        if (!swipeState.isDragging) return;
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        const diffX = clientX - swipeState.startX;
+        const diffY = clientY - swipeState.startY;
+
+        // Detección inicial del vector dominante
+        if (swipeState.isHorizontal === null) {
+          if (Math.abs(diffY) > Math.abs(diffX) && Math.abs(diffY) > 6) {
+            setSwipeState(prev => ({ ...prev, isDragging: false, isHorizontal: false }));
+            return;
+          } else if (Math.abs(diffX) > 6) {
+            setSwipeState(prev => ({ ...prev, isHorizontal: true }));
+          }
+        }
+
+        if (swipeState.isHorizontal) {
+          if (e.cancelable && e.touches) e.preventDefault();
+          setSwipeState(prev => ({ ...prev, offsetX: diffX }));
+        }
+      };
+
+      const handleTouchEnd = () => {
+        if (!swipeState.isDragging || !swipeState.isHorizontal) {
+          setSwipeState({ offsetX: 0, isDragging: false, startX: 0, startY: 0, isHorizontal: null });
+          return;
+        }
+        const threshold = 75;
+        if (swipeState.offsetX > threshold) {
+          setSwipeState({ offsetX: 0, isDragging: false, startX: 0, startY: 0, isHorizontal: null });
+          setShowPieceEditorModal(true);
+        } else if (swipeState.offsetX < -threshold) {
+          setSwipeState({ offsetX: 0, isDragging: false, startX: 0, startY: 0, isHorizontal: null });
+          setShowTweakDrawer(true);
+        } else {
+          setSwipeState({ offsetX: 0, isDragging: false, startX: 0, startY: 0, isHorizontal: null });
+        }
+      };
+
+      // Sustituir prenda en el look con recalibración dinámica de armonía
+      const handleSwapGarment = (category, replacementGarment) => {
+        setCurrentOutfit(prev => {
+          if (!prev) return prev;
+          const updated = { ...prev, [category]: replacementGarment };
+          const bottomName = updated.bottom?.name.toLowerCase() || 'pantalón';
+          let newEditorial = lang === 'es'
+            ? `Sinergia tonal renovada incorporando ${replacementGarment.name.toLowerCase()} con ${bottomName}. Calibrado para ${weather.tempC}°C.`
+            : (lang === 'en'
+              ? `Renewed tonal synergy pairing ${replacementGarment.name.toLowerCase()} with ${bottomName}. Calibrated for ${weather.tempC}°C.`
+              : `Sinergia tonal renovada incorporant ${replacementGarment.name.toLowerCase()} amb ${bottomName}. Calibrat per a ${weather.tempC}°C.`);
+          return {
+            ...updated,
+            editorial: newEditorial,
+            harmonyScore: Math.min(99, Math.max(91, (prev.harmonyScore || 96) + (Math.random() > 0.5 ? 1 : -1)))
+          };
+        });
+        showToast(t.garmentUpdatedAlert);
+      };
+
+      // Confirmar "Me lo puse hoy" con persistencia de prendas reales
+      const handleConfirmWearToday = () => {
+        if (!currentOutfit) return;
+
+        const wornGarments = [
+          currentOutfit.outerwear,
+          currentOutfit.top,
+          currentOutfit.bottom,
+          currentOutfit.footwear
+        ].filter(Boolean);
+
+        const outfitIds = wornGarments.map(g => g.id);
+
+        setWardrobe(prev => prev.map(item => {
+          if (outfitIds.includes(item.id)) {
+            return { ...item, timesWorn: item.timesWorn + 1 };
+          }
+          return item;
+        }));
+
+        const newEntry = {
+          id: "hist_" + Date.now(),
+          date: lang === 'es' ? "Hoy, confirmado" : (lang === 'en' ? "Today, confirmed" : "Avui, confirmat"),
+          occasion: eventContext === 'office' ? t.eventOffice : t.eventCasual,
+          tags: [eventContext === 'office' ? "Jornada Laboral" : "Urbano"],
+          garments: wornGarments,
+          garmentNames: wornGarments.map(g => g.name),
+          editorial: currentOutfit.editorial,
+          harmonyScore: currentOutfit.harmonyScore || 96
+        };
+
+        setHistory(prev => [newEntry, ...prev]);
+        setShowPieceEditorModal(false);
+        showToast(lang === 'es' ? "Look registrado en Guardados" : (lang === 'en' ? "Look recorded in Saved" : "Look registrat a Guardats"));
+      };
+
+      //      // Ingesta de fotos con compresión WebP
+      const handleImageFile = (file) => {
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const MAX_DIM = 1200;
+            let width = img.width;
+            let height = img.height;
+
+            if (width > height) {
+              if (width > MAX_DIM) {
+                height *= MAX_DIM / width;
+                width = MAX_DIM;
+              }
+            } else {
+              if (height > MAX_DIM) {
+                width *= MAX_DIM / height;
+                height = MAX_DIM;
+              }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+
+            canvas.toBlob((blob) => {
+              const url = URL.createObjectURL(blob);
+              setCapturedPhotoUrl(url);
+              setCapturedGarmentData({
+                name: "Sobrecamisa Estructurada",
+                brand: "Arket",
+                size: "M",
+                category: "outerwear",
+                fabric: "Algodón sarga denso",
+                formality: 6
+              });
+              setCaptureStage('preview_edit');
+            }, 'image/webp', 0.82);
+          };
+          img.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+      };
+
+      const handleSaveCapturedGarment = () => {
+        if (!capturedGarmentData.brand.trim()) {
+          showToast(t.brandRequiredAlert);
+          return;
+        }
+
+        const newGarment = {
+          id: "g_" + Date.now(),
+          name: capturedGarmentData.name || (lang === 'es' ? "Prenda Nueva" : "New Garment"),
+          brand: capturedGarmentData.brand.trim(),
+          size: capturedGarmentData.size || "M",
+          category: capturedGarmentData.category,
+          subCategory: "outerwear",
+          color: { primaryHex: "#2C3E50", undertone: "neutral", family: "blue" },
+          fabric: capturedGarmentData.fabric,
+          formality: Number(capturedGarmentData.formality) || 5,
+          thermalRange: { minTempC: 12, maxTempC: 22 },
+          state: "available",
+          timesWorn: 0,
+          imageUrl: capturedPhotoUrl || "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?auto=format&fit=crop&w=700&q=80"
+        };
+
+        setWardrobe(prev => [newGarment, ...prev]);
+        setShowCaptureModal(false);
+        setCaptureStage('select');
+        setCapturedPhotoUrl(null);
+        setCurrentView('wardrobe');
+        showToast(t.garmentSavedAlert);
+      };
+
+      // -----------------------------------------------------------------------
+      // FLUJO "AÑADIR ESENCIALES": SELECCIÓN GENÉRICA & REINICIO CONTINUO
+      // -----------------------------------------------------------------------
+      const handleSelectGenericTemplate = (template) => {
+        const defaultSize = template.category === 'footwear' ? '42 EU' : (template.category === 'bottom' ? '40' : 'M');
+        setCustomizingEssential({
+          templateId: template.id,
+          name: template.name[lang] || template.name.es,
+          brand: "Básico Editorial",
+          size: defaultSize,
+          category: template.category,
+          subCategory: template.id.replace('gen_', ''),
+          fabric: template.defaultFabric,
+          formality: template.defaultFormality,
+          imageUrl: template.imageUrl,
+          color: {
+            primaryHex: template.defaultHex,
+            undertone: "neutral",
+            family: "neutral"
+          }
+        });
+        setEssentialFlowStep('customize');
+      };
+
+      const handleSaveCustomizedEssential = () => {
+        if (!customizingEssential.brand.trim()) {
+          showToast(t.brandRequiredAlert);
+          return;
+        }
+
+        const newGarment = {
+          id: "g_" + Date.now(),
+          name: customizingEssential.name.trim() || (lang === 'es' ? "Prenda Básica" : "Essential Piece"),
+          brand: customizingEssential.brand.trim(),
+          size: customizingEssential.size.trim() || "M",
+          category: customizingEssential.category,
+          subCategory: customizingEssential.subCategory,
+          color: customizingEssential.color,
+          fabric: customizingEssential.fabric.trim() || "Tejido esencial",
+          formality: Number(customizingEssential.formality) || 5,
+          thermalRange: { minTempC: 10, maxTempC: 25 },
+          state: "available",
+          timesWorn: 0,
+          imageUrl: customizingEssential.imageUrl
+        };
+
+        setWardrobe(prev => [newGarment, ...prev]);
+        showToast(t.garmentSavedAlert);
+
+        // REINICIO AUTOMÁTICO AL GRID PARA QUE EL USUARIO PUEDA AÑADIR TODAS LAS QUE QUIERA
+        setCustomizingEssential(null);
+        setEssentialFlowStep('grid');
+      };
+
+      // Alternar disponibilidad
+      const toggleAvailability = (garmentId, e) => {
+        e && e.stopPropagation();
+        setWardrobe(prev => prev.map(item => {
+          if (item.id === garmentId) {
+            return { ...item, state: item.state === 'available' ? 'unavailable' : 'available' };
+          }
+          return item;
+        }));
+      };
+
+      // Guardar edición de prenda
+      const handleSaveGarmentEdits = () => {
+        if (!editedGarmentData) return;
+        setWardrobe(prev => prev.map(item => item.id === editedGarmentData.id ? editedGarmentData : item));
+        setSelectedGarmentModal(editedGarmentData);
+        setIsEditingGarment(false);
+        showToast(t.garmentUpdatedAlert);
+      };
+
+      // Añadir etiqueta a look guardado
+      const handleAddTagToLook = (lookId) => {
+        if (!newTagInput.trim()) return;
+        const tagText = newTagInput.trim();
+        setHistory(prev => prev.map(l => {
+          if (l.id === lookId) {
+            return { ...l, tags: [...(l.tags || []), tagText] };
+          }
+          return l;
+        }));
+        setInspectedLook(prev => prev ? { ...prev, tags: [...(prev.tags || []), tagText] } : null);
+        setNewTagInput("");
+        showToast(t.tagAddedAlert);
+      };
+
+      // Filtrado de armario
+      const filteredWardrobe = useMemo(() => {
+        if (wardrobeFilter === 'all') return wardrobe;
+        return wardrobe.filter(g => g.category === wardrobeFilter);
+      }, [wardrobe, wardrobeFilter]);
+
+      // Guardar Perfil
+      const handleSaveProfile = () => {
+        setCurrentUser(tempProfileData);
+        setIsEditingProfile(false);
+        showToast(t.profileUpdatedAlert);
+      };
+
+      //      // =========================================================================
+      // PANTALLA 0: LOGIN EDITORIAL CON PASARELA CROSSFADE
+      // =========================================================================
+      if (!isAuthenticated) {
+        return (
+          <div className="min-h-screen max-w-md mx-auto relative flex flex-col justify-between overflow-hidden bg-arachne-ink text-white font-sans">
+            <div className="absolute inset-0 z-0">
+              {FASHION_EDITORIAL_IMAGES.map((imgSrc, idx) => (
+                <div
+                  key={idx}
+                  className={`absolute inset-0 bg-cover bg-center crossfade-img ${
+                    idx === carouselIdx ? 'opacity-55 scale-105' : 'opacity-0 scale-100'
+                  }`}
+                  style={{ backgroundImage: `url('${imgSrc}')` }}
+                />
+              ))}
+              <div className="absolute inset-0 bg-gradient-to-t from-arachne-ink via-arachne-ink/65 to-black/40" />
+            </div>
+
+            <header className="relative z-10 px-6 pt-8 flex items-center justify-between">
+              <div>
+                <span className="text-[10px] uppercase tracking-[0.28em] font-semibold text-arachne-terracotta">{t.platformTag}</span>
+                <h1 className="font-serif text-3xl font-bold tracking-tight text-white">ARACHNE</h1>
+              </div>
+
+              <div className="flex space-x-1 bg-white/10 backdrop-blur-md p-1 rounded border border-white/20">
+                {['es', 'en', 'ca'].map(l => (
+                  <button
+                    key={l}
+                    onClick={() => setLang(l)}
+                    className={`text-[11px] uppercase font-semibold px-2 py-0.5 rounded transition-all ${
+                      lang === l ? 'bg-white text-arachne-ink' : 'text-zinc-300 hover:text-white'
+                    }`}
+                  >
+                    {l}
+                  </button>
+                ))}
+              </div>
+            </header>
+
+            <div className="relative z-10 px-6 py-4 space-y-2">
+              <span className="text-xs uppercase tracking-widest text-arachne-accentSand/90 font-mono font-medium">Alpha Cohort · 10 Testers</span>
+              <h2 className="font-serif text-3xl sm:text-4xl leading-tight font-medium">
+                {lang === 'es' ? "Tu armario virtual." : (lang === 'en' ? "Your smart wardrobe." : "El teu armari virtual.")}<br />
+                <span className="italic font-normal text-arachne-accentSand">
+                  {lang === 'es' ? "Estilo prescriptivo." : (lang === 'en' ? "Prescriptive styling." : "Estil prescriptiu.")}
+                </span>
+              </h2>
+              <p className="text-xs text-zinc-300 max-w-xs leading-relaxed">
+                {t.loginHeroSubtitle}
+              </p>
+            </div>
+
+            <div className="relative z-10 px-6 pb-10 space-y-4">
+              <div className="bg-white/10 backdrop-blur-xl p-5 rounded-xl border border-white/20 space-y-4 shadow-floating">
+                <div>
+                  <label className="text-[11px] font-semibold uppercase tracking-wider text-zinc-300 block mb-1.5">
+                    {t.loginInvitePrompt}
+                  </label>
+                  <input
+                    type="email"
+                    value={currentUser.email}
+                    onChange={(e) => setCurrentUser({ ...currentUser, email: e.target.value })}
+                    placeholder={t.loginInputPlaceholder}
+                    className="w-full bg-white/15 border border-white/30 rounded-lg px-3.5 py-2.5 text-xs text-white placeholder-zinc-400 focus:outline-none focus:border-white transition-all"
+                  />
+                </div>
+
+                <div className="space-y-1.5 pt-1">
+                  <span className="text-[10px] text-zinc-400 font-mono block">{t.quickTestersLabel}</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {PRECONFIGURED_TESTERS.map(pt => (
+                      <button
+                        key={pt.email}
+                        onClick={() => setCurrentUser({ ...currentUser, name: pt.name.split(' ')[0], email: pt.email })}
+                        className={`text-[10px] px-2.5 py-1 rounded-full border transition-all ${
+                          currentUser.email === pt.email
+                            ? 'bg-arachne-terracotta border-arachne-terracotta text-white font-semibold'
+                            : 'bg-white/5 border-white/20 text-zinc-300 hover:bg-white/10'
+                        }`}
+                      >
+                        {pt.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setIsAuthenticated(true)}
+                  className="w-full bg-white hover:bg-zinc-100 text-arachne-ink text-xs font-semibold py-3 px-4 rounded-lg transition-all flex items-center justify-center space-x-2 shadow-subtle active:scale-[0.98]"
+                >
+                  <span>{t.loginButton}</span>
+                  <Icon name="arrowRight" className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="text-center">
+                <span className="text-[10px] text-zinc-400 flex items-center justify-center space-x-1.5">
+                  <Icon name="shield" className="w-3.5 h-3.5 text-arachne-sageLight" />
+                  <span>{t.privacyBadge}</span>
+                </span>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      //      // =========================================================================
+      // APLICACIÓN PRINCIPAL (VISTAS AUTENTICADAS)
+      // =========================================================================
+      return (
+        <div className="min-h-screen flex flex-col justify-between max-w-md mx-auto bg-arachne-canvas border-x border-arachne-border relative font-sans shadow-subtle">
+          
+          {toast && (
+            <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-11/12 max-w-sm bg-arachne-ink text-white text-xs px-4 py-3 rounded-lg shadow-floating flex items-center justify-between animate-fadeInScale">
+              <span className="font-medium tracking-wide">{toast}</span>
+              <button onClick={() => setToast(null)} className="text-zinc-400 hover:text-white ml-2">
+                <Icon name="close" className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
+          {/* CABECERA EDITORIAL */}
+          <header className="px-5 pt-5 pb-3.5 bg-arachne-canvas/90 backdrop-blur-md sticky top-0 z-40 border-b border-arachne-border/70 flex items-center justify-between">
+            <div>
+              <span className="text-[10px] uppercase tracking-[0.25em] font-semibold text-arachne-terracotta">{t.platformTag}</span>
+              <h1 className="font-serif text-2xl font-bold tracking-tight text-arachne-ink">ARACHNE</h1>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-1 bg-arachne-surface p-1 rounded border border-arachne-border">
+                {['es', 'en', 'ca'].map(l => (
+                  <button
+                    key={l}
+                    onClick={() => setLang(l)}
+                    className={`text-[10px] uppercase font-semibold px-2 py-0.5 rounded transition-colors ${
+                      lang === l ? 'bg-arachne-ink text-white' : 'text-arachne-inkMuted hover:text-arachne-ink'
+                    }`}
+                  >
+                    {l}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                onClick={() => setCurrentView('profile')}
+                title={t.navProfile}
+                className="w-8 h-8 rounded-full overflow-hidden border border-arachne-border flex items-center justify-center bg-arachne-surface shadow-subtle hover:scale-105 transition-transform"
+              >
+                <img src={currentUser.photoUrl} alt="User" className="w-full h-full object-cover" />
+              </button>
+            </div>
+          </header>
+
+          {/* CONTENEDOR PRINCIPAL */}
+          <main className="flex-1 px-5 py-4 overflow-y-auto pb-24">
+
+            {/* */}
+            {/* VISTA 1: HOY */}
+            {currentView === 'today' && (
+              <div className="space-y-4 animate-slideUp">
+                
+                {/* WIDGET METEOROLÓGICO */}
+                <div className="bg-white rounded-xl p-3.5 border border-arachne-border shadow-subtle flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-9 h-9 rounded-full bg-arachne-surface flex items-center justify-center text-arachne-sage">
+                      <Icon name="cloudRain" className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="flex items-center space-x-1.5">
+                        <span className="font-bold text-base text-arachne-ink">{weather.tempC}°C</span>
+                        <span className="text-xs text-arachne-inkMuted">· {weather.location}</span>
+                      </div>
+                      <span className="text-[11px] text-arachne-inkMuted">{t.weatherConditionDesc}</span>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-mono uppercase bg-arachne-surface px-2 py-1 rounded text-arachne-sage font-medium">
+                    {t.weatherFavorable}
+                  </span>
+                </div>
+
+                {/* SELECTORES DE CONTEXTO & BOTÓN DISEÑAR */}
+                <div className="bg-white rounded-xl p-4 border border-arachne-border shadow-subtle space-y-3">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-arachne-inkMuted block mb-2">
+                      {t.outfitTodayHeading}
+                    </span>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        { id: 'office', label: t.eventOffice },
+                        { id: 'casual', label: t.eventCasual },
+                        { id: 'dinner', label: t.eventDinner },
+                        { id: 'weekend', label: t.eventWeekend }
+                      ].map(ev => (
+                        <button
+                          key={ev.id}
+                          onClick={() => setEventContext(ev.id)}
+                          className={`text-xs py-2 px-3 rounded-lg border text-left transition-all font-medium ${
+                            eventContext === ev.id
+                              ? 'bg-arachne-ink border-arachne-ink text-white shadow-subtle'
+                              : 'bg-arachne-surface/50 border-arachne-border text-arachne-ink hover:bg-arachne-surface'
+                          }`}
+                        >
+                          {ev.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Transición de Doble Jornada */}
+                  <div className="pt-2 border-t border-arachne-border">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-semibold text-arachne-ink">{t.dualJourneyTitle}</span>
+                      <button
+                        onClick={() => setDualJourney(!dualJourney)}
+                        className={`w-9 h-5 rounded-full transition-colors relative p-0.5 ${
+                          dualJourney ? 'bg-arachne-sage' : 'bg-zinc-300'
+                        }`}
+                      >
+                        <div className={`w-4 h-4 rounded-full bg-white transition-transform ${
+                          dualJourney ? 'translate-x-4' : 'translate-x-0'
+                        }`} />
+                      </button>
+                    </div>
+
+                    {dualJourney && (
+                      <div className="grid grid-cols-3 gap-1.5 pt-1 animate-fadeInScale">
+                        {[
+                          { id: 'dinner', label: t.dualOffDinner },
+                          { id: 'gym', label: t.dualWorkGym },
+                          { id: 'party', label: t.dualCasualParty }
+                        ].map(dj => (
+                          <button
+                            key={dj.id}
+                            onClick={() => setDualJourneyType(dj.id)}
+                            className={`text-[10px] py-1.5 px-2 rounded border text-center transition-all ${
+                              dualJourneyType === dj.id
+                                ? 'bg-arachne-terracotta border-arachne-terracotta text-white font-semibold'
+                                : 'bg-arachne-surface/50 border-arachne-border text-arachne-ink'
+                            }`}
+                          >
+                            {dj.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* BOTÓN DISPARADOR "DISEÑAR" */}
+                  <button
+                    onClick={() => generatePrescription()}
+                    disabled={isGenerating}
+                    className="w-full bg-arachne-ink hover:bg-zinc-800 text-white text-xs font-semibold py-3.5 rounded-lg transition-all flex items-center justify-center space-x-2 shadow-subtle active:scale-[0.98]"
+                  >
+                    <Icon name="sparkles" className={`w-4 h-4 text-arachne-terracotta ${isGenerating ? 'animate-spin' : ''}`} />
+                    <span className="tracking-wide uppercase text-[11px] font-bold">{isGenerating ? t.generatingMessage : t.generateActionBtn}</span>
+                  </button>
+                </div>
+
+                {/* ESTADO 1: CARGA DE 6.8s CON TIPS ROTATIVOS CADA 3.9s */}
+                {isGenerating && (
+                  <div className="bg-white rounded-xl p-6 border border-arachne-border shadow-editorial relative overflow-hidden animate-fadeInScale">
+                    <div className="flex flex-col items-center text-center space-y-4">
+                      <div className="relative w-16 h-16 flex items-center justify-center">
+                        <div className="absolute inset-0 rounded-full border-2 border-arachne-terracotta/20 animate-ping" />
+                        <div className="w-12 h-12 rounded-full bg-arachne-surface border border-arachne-border flex items-center justify-center text-arachne-terracotta">
+                          <Icon name="sparkles" className="w-6 h-6 animate-pulse" />
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-arachne-terracotta block">{t.engineCognitiveTag}</span>
+                        <h4 className="font-serif text-sm font-semibold text-arachne-ink">{t.calibratingTitle}</h4>
+                      </div>
+
+                      <div className="w-full bg-arachne-canvas p-4 rounded-xl border border-arachne-border/80 min-h-[96px] flex flex-col justify-center transition-all">
+                        <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-arachne-sage block mb-1">
+                          ✦ {FASHION_TIPS[currentTipIndex].tag[lang] || FASHION_TIPS[currentTipIndex].tag.es}
+                        </span>
+                        <p className="font-serif italic text-xs leading-relaxed text-arachne-ink animate-fadeInScale">
+                          "{FASHION_TIPS[currentTipIndex].text[lang] || FASHION_TIPS[currentTipIndex].text.es}"
+                        </p>
+                      </div>
+
+                      <div className="w-40 h-1 bg-arachne-surface rounded-full overflow-hidden">
+                        <div className="h-full bg-arachne-terracotta rounded-full w-2/3 animate-pulse" />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ESTADO 2: ESTADO VACÍO PREVIO */}
+                {!currentOutfit && !isGenerating && (
+                  <div className="bg-white rounded-xl p-8 border border-dashed border-arachne-border text-center space-y-3 shadow-subtle">
+                    <div className="w-12 h-12 rounded-full bg-arachne-surface mx-auto flex items-center justify-center text-arachne-inkMuted">
+                      <Icon name="hanger" className="w-6 h-6" />
+                    </div>
+                    <div className="space-y-1">
+                      <h4 className="font-serif text-sm font-semibold text-arachne-ink">{t.emptyTodayTitle}</h4>
+                      <p className="text-xs text-arachne-inkMuted max-w-xs mx-auto leading-relaxed">
+                        {t.emptyTodayPrompt}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => generatePrescription()}
+                      className="text-xs font-semibold px-4 py-2 bg-arachne-surface hover:bg-arachne-accentSand/30 text-arachne-ink rounded-lg border border-arachne-border transition-colors inline-flex items-center space-x-1.5"
+                    >
+                      <Icon name="sparkles" className="w-3.5 h-3.5 text-arachne-terracotta" />
+                      <span>{t.generateActionBtn}</span>
+                    </button>
+                  </div>
+                )}
+
+                {/* ESTADO 3: OUTFIT CON SWIPE ANTI-CONFLICTO Y ARMONÍA INTERACTIVA */}
+                {currentOutfit && !isGenerating && (
+                  <div
+                    onMouseDown={handleTouchStart}
+                    onMouseMove={handleTouchMove}
+                    onMouseUp={handleTouchEnd}
+                    onTouchStart={handleTouchStart}
+                    onTouchMove={handleTouchMove}
+                    onTouchEnd={handleTouchEnd}
+                    style={{
+                      transform: `translateX(${swipeState.offsetX}px) rotate(${swipeState.offsetX * 0.04}deg)`,
+                      transition: swipeState.isDragging ? 'none' : 'transform 0.25s ease-out',
+                      touchAction: 'pan-y'
+                    }}
+                    className="bg-white rounded-xl p-4 border border-arachne-border shadow-editorial relative overflow-hidden select-none cursor-grab active:cursor-grabbing"
+                  >
+                    {swipeState.offsetX > 25 && (
+                      <div className="absolute top-4 left-4 z-30 bg-arachne-sage text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-subtle uppercase tracking-wider animate-fadeInScale">
+                        ✓ {t.swipeRightLabel}
+                      </div>
+                    )}
+                    {swipeState.offsetX < -25 && (
+                      <div className="absolute top-4 right-4 z-30 bg-arachne-terracotta text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-subtle uppercase tracking-wider animate-fadeInScale">
+                        ✕ {t.swipeLeftLabel}
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between pb-2.5 border-b border-arachne-border/60">
+                      <div>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-arachne-terracotta">{t.outfitTodayHeading}</span>
+                        <h3 className="font-serif text-sm font-semibold text-arachne-ink">{t.calibratedProposalTitle}</h3>
+                      </div>
+                      
+                      {/* BOTÓN INTERACTIVO DE ARMONÍA ESTÉTICA */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowHarmonyModal(true);
+                        }}
+                        title="Ver desglose del cálculo de armonía"
+                        className="text-[11px] font-mono bg-arachne-surface hover:bg-arachne-accentSand/40 text-arachne-ink px-2.5 py-1 rounded-full border border-arachne-border transition-colors flex items-center space-x-1 shadow-subtle active:scale-95"
+                      >
+                        <span className="font-semibold">{t.harmonyScoreLabel}: {currentOutfit.harmonyScore}%</span>
+                        <Icon name="info" className="w-3.5 h-3.5 text-arachne-terracotta ml-0.5" />
+                      </button>
+                    </div>
+
+                    {/* LIENZO ASIMÉTRICO FLAT-LAY 2D */}
+                    <div className="py-3.5 space-y-2.5">
+                      {currentOutfit.outerwear && (
+                        <div
+                          onClick={() => { setSwappingCategory('outerwear'); setShowPieceEditorModal(true); }}
+                          className="h-28 rounded-lg overflow-hidden bg-arachne-surface border border-arachne-border relative shadow-subtle group cursor-pointer"
+                        >
+                          <img src={currentOutfit.outerwear.imageUrl} alt={currentOutfit.outerwear.name} className="w-full h-full object-cover" />
+                          <div className="absolute bottom-1.5 left-2 bg-black/65 backdrop-blur-xs text-white text-[10px] px-2 py-0.5 rounded flex items-center space-x-1.5">
+                            <span className="font-semibold">{currentOutfit.outerwear.brand}</span>
+                            <span>·</span>
+                            <span className="truncate max-w-[140px]">{currentOutfit.outerwear.name}</span>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="grid grid-cols-2 gap-2.5">
+                        <div
+                          onClick={() => { setSwappingCategory('top'); setShowPieceEditorModal(true); }}
+                          className="h-32 rounded-lg overflow-hidden bg-arachne-surface border border-arachne-border relative shadow-subtle cursor-pointer"
+                        >
+                          <img src={currentOutfit.top?.imageUrl} alt={currentOutfit.top?.name} className="w-full h-full object-cover" />
+                          <div className="absolute bottom-1.5 left-1.5 right-1.5 bg-black/65 text-white text-[9px] px-1.5 py-0.5 rounded truncate">
+                            <strong>{currentOutfit.top?.brand}</strong> · {currentOutfit.top?.name}
+                          </div>
+                        </div>
+
+                        <div
+                          onClick={() => { setSwappingCategory('bottom'); setShowPieceEditorModal(true); }}
+                          className="h-32 rounded-lg overflow-hidden bg-arachne-surface border border-arachne-border relative shadow-subtle cursor-pointer"
+                        >
+                          <img src={currentOutfit.bottom?.imageUrl} alt={currentOutfit.bottom?.name} className="w-full h-full object-cover" />
+                          <div className="absolute bottom-1.5 left-1.5 right-1.5 bg-black/65 text-white text-[9px] px-1.5 py-0.5 rounded truncate">
+                            <strong>{currentOutfit.bottom?.brand}</strong> · {currentOutfit.bottom?.name}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2.5">
+                        <div
+                          onClick={() => { setSwappingCategory('footwear'); setShowPieceEditorModal(true); }}
+                          className="h-24 rounded-lg overflow-hidden bg-arachne-surface border border-arachne-border relative shadow-subtle cursor-pointer"
+                        >
+                          <img src={currentOutfit.footwear?.imageUrl} alt={currentOutfit.footwear?.name} className="w-full h-full object-cover" />
+                          <div className="absolute bottom-1.5 left-1.5 right-1.5 bg-black/65 text-white text-[9px] px-1.5 py-0.5 rounded truncate">
+                            <strong>{currentOutfit.footwear?.brand}</strong> · {currentOutfit.footwear?.name}
+                          </div>
+                        </div>
+
+                        <div className="h-24 rounded-lg bg-arachne-surface border border-arachne-border p-2 flex flex-col justify-between shadow-subtle">
+                          {currentOutfit.transitionLayer ? (
+                            <>
+                              <span className="text-[9px] font-bold uppercase text-arachne-terracotta leading-tight">
+                                {currentOutfit.transitionLayer.title}
+                              </span>
+                              <p className="text-[11px] font-medium text-arachne-ink truncate">
+                                {currentOutfit.transitionLayer.item.brand} · {currentOutfit.transitionLayer.item.name}
+                              </p>
+                              <span className="text-[9px] text-arachne-inkMuted">{t.modularLayerTag}</span>
+                            </>
+                          ) : (
+                            <div className="h-full flex items-center justify-center text-center">
+                              <span className="text-[10px] text-arachne-inkSubtle italic">{t.singleRoutineTag}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* JUSTIFICACIÓN EDITORIAL */}
+                    <div className="bg-arachne-canvas p-3 rounded-lg border border-arachne-border/80">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-arachne-terracotta block mb-0.5">
+                        {t.editorialHeading}
+                      </span>
+                      <p className="font-serif italic text-xs leading-relaxed text-arachne-ink">
+                        "{currentOutfit.editorial}"
+                      </p>
+                    </div>
+
+                    {/* CONTROLES INFERIORES */}
+                    <div className="pt-3.5 flex items-center space-x-2">
+                      <button
+                        onClick={() => setShowTweakDrawer(true)}
+                        className="flex-1 py-2.5 px-3 rounded-lg border border-arachne-border hover:bg-arachne-surface text-arachne-ink text-xs font-semibold flex items-center justify-center space-x-1.5 transition-colors"
+                      >
+                        <Icon name="refresh" className="w-3.5 h-3.5" />
+                        <span>{t.swipeLeftLabel}</span>
+                      </button>
+
+                      <button
+                        onClick={() => setShowPieceEditorModal(true)}
+                        className="flex-1 py-2.5 px-3 rounded-lg bg-arachne-ink hover:bg-zinc-800 text-white text-xs font-semibold flex items-center justify-center space-x-1.5 transition-all shadow-subtle active:scale-[0.98]"
+                      >
+                        <Icon name="check" className="w-3.5 h-3.5 text-arachne-sageLight" />
+                        <span>{t.swipeRightLabel}</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* */}
+            {/* VISTA 2: ARMARIO DIGITAL */}
+            {currentView === 'wardrobe' && (
+              <div className="space-y-4 animate-slideUp">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="font-serif text-xl font-bold text-arachne-ink">{t.wardrobeTitle}</h2>
+                    <p className="text-xs text-arachne-inkMuted">{wardrobe.length} {t.wardrobeSub}</p>
+                  </div>
+                  
+                  {/* BOTÓN DESTACADO "AÑADIR ESENCIALES" CON ICONO "+" LATERAL */}
+                  <button
+                    onClick={() => {
+                      setEssentialFlowStep('grid');
+                      setCustomizingEssential(null);
+                      setShowBasicsModal(true);
+                    }}
+                    className="group flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-arachne-ink hover:bg-zinc-800 text-white shadow-subtle transition-all active:scale-95"
+                  >
+                    <span className="w-5 h-5 rounded-full bg-arachne-terracotta text-white flex items-center justify-center font-bold text-xs shadow-subtle group-hover:rotate-90 transition-transform duration-300">
+                      +
+                    </span>
+                    <span className="text-xs font-semibold tracking-tight">{t.addBasicsBtn}</span>
+                  </button>
+                </div>
+
+                <div className="flex space-x-1.5 overflow-x-auto no-scrollbar py-1">
+                  {[
+                    { id: 'all', label: t.catAll },
+                    { id: 'top', label: t.catTop },
+                    { id: 'bottom', label: t.catBottom },
+                    { id: 'outerwear', label: t.catOuter },
+                    { id: 'footwear', label: t.catShoes }
+                  ].map(f => (
+                    <button
+                      key={f.id}
+                      onClick={() => setWardrobeFilter(f.id)}
+                      className={`text-xs px-3 py-1.5 rounded-full border whitespace-nowrap transition-all ${
+                        wardrobeFilter === f.id
+                          ? 'bg-arachne-ink border-arachne-ink text-white font-medium shadow-subtle'
+                          : 'bg-white border-arachne-border text-arachne-inkMuted hover:text-arachne-ink'
+                      }`}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 pt-1">
+                  {filteredWardrobe.map(item => (
+                    <div
+                      key={item.id}
+                      onClick={() => {
+                        setSelectedGarmentModal(item);
+                        setEditedGarmentData({ ...item });
+                        setIsEditingGarment(false);
+                      }}
+                      className="bg-white rounded-xl overflow-hidden border border-arachne-border shadow-subtle hover:border-arachne-borderHover transition-all flex flex-col justify-between cursor-pointer group"
+                    >
+                      <div className="h-40 bg-arachne-surface relative overflow-hidden">
+                        <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                        
+                        <button
+                          onClick={(e) => toggleAvailability(item.id, e)}
+                          title={t.toggleAvailability}
+                          className={`absolute top-2 right-2 text-[9px] font-semibold px-2 py-0.5 rounded-full border backdrop-blur-md transition-colors ${
+                            item.state === 'available'
+                              ? 'bg-arachne-sageLight/90 border-arachne-sage/30 text-arachne-sage'
+                              : 'bg-zinc-800/80 border-white/20 text-white'
+                          }`}
+                        >
+                          {item.state === 'available' ? t.availableState : t.unavailableState}
+                        </button>
+                      </div>
+
+                      <div className="p-3">
+                        <div className="flex items-center justify-between text-[10px] text-arachne-inkMuted uppercase tracking-wider font-semibold">
+                          <span>{item.brand}</span>
+                          <span>{t.sizeLabel}. {item.size || "M"}</span>
+                        </div>
+                        <h4 className="font-serif text-xs font-bold text-arachne-ink truncate mt-0.5">{item.name}</h4>
+                        <span className="text-[10px] text-arachne-inkMuted block truncate">{item.fabric}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* */}
+            {/* VISTA 3: GUARDADOS (VISUALIZACIÓN UNIFICADA DE OUTFITS) */}
+            {currentView === 'history' && (
+              <div className="space-y-4 animate-slideUp">
+                <div>
+                  <h2 className="font-serif text-xl font-bold text-arachne-ink">{t.historyTitle}</h2>
+                  <p className="text-xs text-arachne-inkMuted">{t.historySub}</p>
+                </div>
+
+                {history.length === 0 ? (
+                  <div className="bg-white rounded-xl p-8 border border-dashed border-arachne-border text-center space-y-2">
+                    <Icon name="bookmarkGuardados" className="w-8 h-8 text-arachne-inkMuted mx-auto" />
+                    <h4 className="font-serif text-sm font-semibold text-arachne-ink">{t.savedEmptyTitle}</h4>
+                    <p className="text-xs text-arachne-inkMuted">{t.savedEmptySub}</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3.5">
+                    {history.map(look => (
+                      <div
+                        key={look.id}
+                        onClick={() => setInspectedLook(look)}
+                        className="bg-white rounded-xl p-3.5 border border-arachne-border shadow-subtle hover:border-arachne-borderHover transition-all cursor-pointer space-y-3 group"
+                      >
+                        <div className="flex items-center justify-between text-[10px] font-mono">
+                          <span className="px-2.5 py-0.5 rounded-full bg-arachne-surface font-semibold text-arachne-ink border border-arachne-border">
+                            {look.occasion}
+                          </span>
+                          <span className="text-arachne-inkMuted">{look.date}</span>
+                        </div>
+
+                        {/* MINIATURAS VISUALES CON IMÁGENES REALES */}
+                        <div className="grid grid-cols-4 gap-1.5 py-1">
+                          {look.garments && look.garments.length > 0 ? (
+                            look.garments.slice(0, 4).map((g, idx) => (
+                              <div key={idx} className="h-16 rounded-md overflow-hidden bg-arachne-surface border border-arachne-border relative shadow-subtle">
+                                <img src={g.imageUrl} alt={g.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                              </div>
+                            ))
+                          ) : (
+                            <div className="col-span-4 h-12 bg-arachne-surface rounded-md flex items-center justify-center text-xs text-arachne-inkMuted">
+                              {look.garmentNames ? look.garmentNames.join(" + ") : "Look completo"}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <p className="font-serif italic text-xs text-arachne-ink line-clamp-1 flex-1 pr-2">
+                            "{look.editorial}"
+                          </p>
+                          <span className="text-[10px] font-mono font-bold bg-arachne-surface text-arachne-terracotta px-2 py-0.5 rounded border border-arachne-border">
+                            {look.harmonyScore || 96}%
+                          </span>
+                        </div>
+
+                        {look.tags && look.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 pt-0.5">
+                            {look.tags.map((tag, idx) => (
+                              <span key={idx} className="text-[10px] px-2 py-0.5 bg-arachne-surface text-arachne-ink rounded border border-arachne-border">
+                                #{tag}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* */}
+            {/* VISTA 4: PERFIL (100% EDITABLE & MÉTRICAS) */}
+            {currentView === 'profile' && (
+              <div className="space-y-4 animate-slideUp">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="font-serif text-xl font-bold text-arachne-ink">{t.profileTitle}</h2>
+                    <p className="text-xs text-arachne-inkMuted">{t.profileSub}</p>
+                  </div>
+                  
+                  {!isEditingProfile ? (
+                    <button
+                      onClick={() => {
+                        setTempProfileData({ ...currentUser });
+                        setIsEditingProfile(true);
+                      }}
+                      className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-arachne-surface text-arachne-ink border border-arachne-border hover:bg-arachne-accentSand/30 transition-colors"
+                    >
+                      {t.editProfileBtn}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleSaveProfile}
+                      className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-arachne-ink text-white"
+                    >
+                      {t.saveProfileBtn}
+                    </button>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="bg-white p-3 rounded-xl border border-arachne-border text-center shadow-subtle">
+                    <span className="text-[10px] uppercase font-bold text-arachne-inkMuted block">{t.generatedOutfitsMetric}</span>
+                    <span className="font-serif text-xl font-bold text-arachne-ink">{generatedCount}</span>
+                  </div>
+                  <div className="bg-white p-3 rounded-xl border border-arachne-border text-center shadow-subtle">
+                    <span className="text-[10px] uppercase font-bold text-arachne-inkMuted block">{t.confirmedOutfitsMetric}</span>
+                    <span className="font-serif text-xl font-bold text-arachne-sage">{history.length}</span>
+                  </div>
+                  <div className="bg-white p-3 rounded-xl border border-arachne-border text-center shadow-subtle">
+                    <span className="text-[10px] uppercase font-bold text-arachne-inkMuted block">{t.closetPiecesMetric}</span>
+                    <span className="font-serif text-xl font-bold text-arachne-ink">{wardrobe.length}</span>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-xl p-4 border border-arachne-border shadow-subtle space-y-3.5">
+                  <div className="flex items-center space-x-3.5 pb-3 border-b border-arachne-border">
+                    <img src={currentUser.photoUrl} alt="User" className="w-14 h-14 rounded-full object-cover border border-arachne-border" />
+                    <div>
+                      <h3 className="font-serif text-base font-bold text-arachne-ink">{currentUser.name} {currentUser.lastName}</h3>
+                      <span className="text-xs text-arachne-inkMuted">{currentUser.email} · {currentUser.age} {t.yearsOldSuffix}</span>
+                    </div>
+                  </div>
+
+                  {!isEditingProfile ? (
+                    <div className="space-y-3 pt-1">
+                      <div>
+                        <span className="text-[10px] font-bold uppercase text-arachne-inkMuted block mb-1">
+                          {t.preferredAestheticTitle}
+                        </span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {currentUser.aesthetics.map(aId => {
+                            const match = AESTHETIC_OPTIONS.find(o => o.id === aId);
+                            const label = match ? (match.label[lang] || match.label.es) : aId;
+                            return (
+                              <span key={aId} className="text-xs bg-arachne-surface text-arachne-ink font-semibold px-2.5 py-1 rounded-full border border-arachne-border">
+                                {label}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-2.5 pt-1">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[10px] font-bold uppercase text-arachne-inkMuted block mb-0.5">{t.profileNameLabel}</label>
+                          <input
+                            type="text"
+                            value={tempProfileData.name}
+                            onChange={(e) => setTempProfileData({ ...tempProfileData, name: e.target.value })}
+                            className="w-full text-xs p-2 rounded-lg border border-arachne-border outline-none focus:border-arachne-ink"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold uppercase text-arachne-inkMuted block mb-0.5">{t.profileLastNameLabel}</label>
+                          <input
+                            type="text"
+                            value={tempProfileData.lastName}
+                            onChange={(e) => setTempProfileData({ ...tempProfileData, lastName: e.target.value })}
+                            className="w-full text-xs p-2 rounded-lg border border-arachne-border outline-none focus:border-arachne-ink"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[10px] font-bold uppercase text-arachne-inkMuted block mb-0.5">{t.profileAgeLabel}</label>
+                          <input
+                            type="number"
+                            value={tempProfileData.age}
+                            onChange={(e) => setTempProfileData({ ...tempProfileData, age: Number(e.target.value) })}
+                            className="w-full text-xs p-2 rounded-lg border border-arachne-border outline-none focus:border-arachne-ink"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold uppercase text-arachne-inkMuted block mb-0.5">{t.profileEmailLabel}</label>
+                          <input
+                            type="email"
+                            value={tempProfileData.email}
+                            onChange={(e) => setTempProfileData({ ...tempProfileData, email: e.target.value })}
+                            className="w-full text-xs p-2 rounded-lg border border-arachne-border outline-none focus:border-arachne-ink"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-arachne-inkMuted block mb-0.5">{t.profilePhotoLabel} (URL)</label>
+                        <input
+                          type="text"
+                          value={tempProfileData.photoUrl}
+                          onChange={(e) => setTempProfileData({ ...tempProfileData, photoUrl: e.target.value })}
+                          className="w-full text-xs p-2 rounded-lg border border-arachne-border outline-none focus:border-arachne-ink"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-arachne-inkMuted block mb-1">
+                          {t.preferredAestheticTitle} ({t.preferredAestheticSub})
+                        </label>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          {AESTHETIC_OPTIONS.map(opt => {
+                            const isSelected = tempProfileData.aesthetics.includes(opt.id);
+                            const label = opt.label[lang] || opt.label.es;
+                            return (
+                              <button
+                                key={opt.id}
+                                type="button"
+                                onClick={() => {
+                                  if (isSelected) {
+                                    setTempProfileData({
+                                      ...tempProfileData,
+                                      aesthetics: tempProfileData.aesthetics.filter(id => id !== opt.id)
+                                    });
+                                  } else {
+                                    setTempProfileData({
+                                      ...tempProfileData,
+                                      aesthetics: [...tempProfileData.aesthetics, opt.id]
+                                    });
+                                  }
+                                }}
+                                className={`text-[11px] p-2 rounded-lg border text-left transition-all font-medium ${
+                                  isSelected
+                                    ? 'bg-arachne-ink text-white border-arachne-ink'
+                                    : 'bg-arachne-surface/40 text-arachne-ink border-arachne-border'
+                                }`}
+                              >
+                                {label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="pt-2 border-t border-arachne-border flex justify-between">
+                    <button
+                      onClick={() => setIsAuthenticated(false)}
+                      className="text-xs text-red-600 font-semibold flex items-center space-x-1.5 hover:underline"
+                    >
+                      <Icon name="logOut" className="w-3.5 h-3.5" />
+                      <span>{t.logoutBtn}</span>
+                    </button>
+                    <span className="text-[10px] text-zinc-400 font-mono">ARACHNE v1.4</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+          </main>
+
+          {/* */}
+          {/* =============================================================== */}
+          {/* MODAL: AÑADIR ESENCIALES (BOTONES GRANDES INTERACTUABLES + REINICIO CONTINUO) */}
+          {/* =============================================================== */}
+          {showBasicsModal && (
+            <div className="fixed inset-0 bg-black/45 backdrop-blur-xs z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fadeInScale">
+              <div className="bg-white w-full max-w-sm rounded-t-2xl sm:rounded-2xl overflow-hidden shadow-floating border border-arachne-border p-5 space-y-3.5 max-h-[88vh] flex flex-col">
+                
+                {/* Cabecera del Modal con paso actual */}
+                <div className="flex items-center justify-between pb-2.5 border-b border-arachne-border">
+                  <div className="flex items-center space-x-2">
+                    {essentialFlowStep === 'customize' && (
+                      <button
+                        onClick={() => setEssentialFlowStep('grid')}
+                        className="w-7 h-7 rounded-full bg-arachne-surface hover:bg-arachne-border text-arachne-ink flex items-center justify-center transition-colors mr-1"
+                        title={t.backToTypesBtn}
+                      >
+                        <Icon name="arrowLeft" className="w-4 h-4" />
+                      </button>
+                    )}
+                    <div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-arachne-terracotta">
+                        {essentialFlowStep === 'grid' ? t.genericStepTitle : t.customizeStepTitle}
+                      </span>
+                      <h3 className="font-serif text-base font-bold text-arachne-ink leading-tight">
+                        {t.basicsModalTitle}
+                      </h3>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => {
+                      setShowBasicsModal(false);
+                      setEssentialFlowStep('grid');
+                      setCustomizingEssential(null);
+                    }} 
+                    className="text-zinc-400 hover:text-black p-1"
+                  >
+                    <Icon name="close" className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* PASO 1: PARRILLA DE BOTONES GRANDES GENÉRICOS UNISEX */}
+                {essentialFlowStep === 'grid' && (
+                  <>
+                    <p className="text-xs text-arachne-inkMuted leading-relaxed">
+                      {t.basicsModalSub}
+                    </p>
+
+                    <div className="flex-1 overflow-y-auto space-y-2.5 pr-1 py-1">
+                      {GENERIC_ESSENTIAL_TEMPLATES.map(item => (
+                        <button
+                          key={item.id}
+                          onClick={() => handleSelectGenericTemplate(item)}
+                          className="w-full p-3 rounded-xl border border-arachne-border bg-arachne-surface/40 hover:bg-white hover:border-arachne-terracotta transition-all text-left flex items-center space-x-3 group shadow-subtle hover:shadow-editorial active:scale-[0.98]"
+                        >
+                          <div className="w-12 h-12 rounded-lg overflow-hidden bg-arachne-surface border border-arachne-border flex-shrink-0 relative">
+                            <img src={item.imageUrl} alt={item.name.es} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-bold text-arachne-ink truncate group-hover:text-arachne-terracotta transition-colors">
+                                {item.name[lang] || item.name.es}
+                              </span>
+                              <span className="text-[9px] font-mono uppercase bg-white border border-arachne-border px-1.5 py-0.5 rounded text-arachne-inkMuted">
+                                {item.category}
+                              </span>
+                            </div>
+                            <p className="text-[10px] text-arachne-inkMuted truncate mt-0.5">
+                              {item.desc[lang] || item.desc.es}
+                            </p>
+                          </div>
+                          <span className="text-arachne-inkMuted group-hover:text-arachne-ink group-hover:translate-x-0.5 transition-all text-xs font-bold">
+                            ➔
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="pt-2 border-t border-arachne-border">
+                      <button
+                        onClick={() => setShowBasicsModal(false)}
+                        className="w-full py-2.5 text-xs font-semibold rounded-lg border border-arachne-border text-arachne-ink hover:bg-arachne-surface transition-colors"
+                      >
+                        {t.closeBtn}
+                      </button>
+                    </div>
+                  </>
+                )}
+
+                {/* PASO 2: FORMULARIO DE CATEGORIZACIÓN & REINICIO AL GUARDAR */}
+                {essentialFlowStep === 'customize' && customizingEssential && (
+                  <div className="flex-1 overflow-y-auto space-y-3 pr-1 py-1">
+                    
+                    {/* Tarjeta Visual de Previsualización */}
+                    <div className="h-28 rounded-xl overflow-hidden bg-arachne-surface border border-arachne-border relative shadow-subtle">
+                      <img src={customizingEssential.imageUrl} alt="Preview" className="w-full h-full object-cover" />
+                      <div className="absolute bottom-2 left-2 bg-black/70 backdrop-blur-xs text-white text-[10px] px-2.5 py-0.5 rounded-full font-medium">
+                        ✓ Básico Unisex Editable
+                      </div>
+                    </div>
+
+                    <div className="space-y-2.5">
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-arachne-inkMuted block mb-0.5">
+                          {t.garmentNameLabel}
+                        </label>
+                        <input
+                          type="text"
+                          value={customizingEssential.name}
+                          onChange={(e) => setCustomizingEssential({ ...customizingEssential, name: e.target.value })}
+                          className="w-full text-xs p-2 rounded-lg border border-arachne-border outline-none focus:border-arachne-ink"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[10px] font-bold uppercase text-arachne-inkMuted block mb-0.5">
+                            {t.brandLabel} *
+                          </label>
+                          <input
+                            type="text"
+                            value={customizingEssential.brand}
+                            onChange={(e) => setCustomizingEssential({ ...customizingEssential, brand: e.target.value })}
+                            className="w-full text-xs p-2 rounded-lg border border-arachne-border outline-none font-semibold focus:border-arachne-ink"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold uppercase text-arachne-inkMuted block mb-0.5">
+                            {t.sizeLabel}
+                          </label>
+                          <input
+                            type="text"
+                            value={customizingEssential.size}
+                            onChange={(e) => setCustomizingEssential({ ...customizingEssential, size: e.target.value })}
+                            placeholder="M, 40, Única..."
+                            className="w-full text-xs p-2 rounded-lg border border-arachne-border outline-none focus:border-arachne-ink"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[10px] font-bold uppercase text-arachne-inkMuted block mb-0.5">
+                            {t.fabricLabel}
+                          </label>
+                          <input
+                            type="text"
+                            value={customizingEssential.fabric}
+                            onChange={(e) => setCustomizingEssential({ ...customizingEssential, fabric: e.target.value })}
+                            className="w-full text-xs p-2 rounded-lg border border-arachne-border outline-none focus:border-arachne-ink"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold uppercase text-arachne-inkMuted block mb-0.5">
+                            {t.formalityLabel} (1-10)
+                          </label>
+                          <input
+                            type="number"
+                            min="1"
+                            max="10"
+                            value={customizingEssential.formality}
+                            onChange={(e) => setCustomizingEssential({ ...customizingEssential, formality: e.target.value })}
+                            className="w-full text-xs p-2 rounded-lg border border-arachne-border outline-none focus:border-arachne-ink"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Selector Rápido de Tonalidad / Color */}
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-arachne-inkMuted block mb-1">
+                          Tono Primario
+                        </label>
+                        <div className="flex space-x-2">
+                          {[
+                            { hex: "#18181B", name: "Negro" },
+                            { hex: "#F8FAFC", name: "Blanco" },
+                            { hex: "#64748B", name: "Gris" },
+                            { hex: "#1E3A8A", name: "Marino" },
+                            { hex: "#D7C4B7", name: "Beige" }
+                          ].map(c => (
+                            <button
+                              key={c.hex}
+                              type="button"
+                              onClick={() => setCustomizingEssential({
+                                ...customizingEssential,
+                                color: { ...customizingEssential.color, primaryHex: c.hex }
+                              })}
+                              className={`w-7 h-7 rounded-full border-2 transition-transform ${
+                                customizingEssential.color.primaryHex === c.hex ? 'scale-110 border-arachne-terracotta ring-2 ring-arachne-terracotta/20' : 'border-zinc-300'
+                              }`}
+                              style={{ backgroundColor: c.hex }}
+                              title={c.name}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Botones de Acción: Volver o Guardar */}
+                    <div className="pt-3 border-t border-arachne-border flex space-x-2">
+                      <button
+                        onClick={() => setEssentialFlowStep('grid')}
+                        className="flex-1 py-2.5 rounded-lg border border-arachne-border hover:bg-arachne-surface text-arachne-ink text-xs font-semibold transition-colors"
+                      >
+                        {t.backToTypesBtn}
+                      </button>
+
+                      <button
+                        onClick={handleSaveCustomizedEssential}
+                        className="flex-1 py-2.5 rounded-lg bg-arachne-ink hover:bg-zinc-800 text-white text-xs font-semibold transition-all shadow-subtle active:scale-[0.98]"
+                      >
+                        {t.saveEssentialBtn}
+                      </button>
+                    </div>
+
+                  </div>
+                )}
+
+              </div>
+            </div>
+          )}
+
+          {/* */}
+          {/* =============================================================== */}
+          {/* DRAWER DE AFINAR INTENCIONALIDAD                                */}
+          {/* =============================================================== */}
+          {showTweakDrawer && (
+            <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-end justify-center p-0">
+              <div className="bg-white w-full max-w-md rounded-t-2xl p-5 space-y-3.5 border-t border-arachne-border shadow-floating animate-slideUp">
+                <div className="flex items-center justify-between pb-2 border-b border-arachne-border">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase text-arachne-terracotta">Personalizar Nueva Propuesta</span>
+                    <h3 className="font-serif text-sm font-bold text-arachne-ink">{t.tweakDrawerTitle}</h3>
+                  </div>
+                  <button onClick={() => setShowTweakDrawer(false)} className="text-zinc-400 hover:text-black">
+                    <Icon name="close" className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <p className="text-xs text-arachne-inkMuted">{t.tweakDrawerSubtitle}</p>
+
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  {[
+                    { id: 'warmer', label: t.tweakWarmer },
+                    { id: 'formal', label: t.tweakFormal },
+                    { id: 'shoes', label: t.tweakShoes },
+                    { id: 'lighter', label: t.tweakLighter },
+                    { id: 'active', label: t.vibeActive },
+                    { id: 'effortless', label: t.vibeEffortless }
+                  ].map(tw => (
+                    <button
+                      key={tw.id}
+                      onClick={() => generatePrescription(tw.id)}
+                      className="p-3 text-xs font-semibold rounded-lg border border-arachne-border hover:border-arachne-ink bg-arachne-surface/40 text-arachne-ink text-left transition-colors"
+                    >
+                      {tw.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* =============================================================== */}
+          {/* MODAL DE DESGLOSE DE ARMONÍA ESTÉTICA                           */}
+          {/* =============================================================== */}
+          {showHarmonyModal && (
+            <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fadeInScale">
+              <div className="bg-white w-full max-w-sm rounded-t-2xl sm:rounded-2xl overflow-hidden shadow-floating border border-arachne-border p-5 space-y-4">
+                <div className="flex items-center justify-between pb-2 border-b border-arachne-border">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase text-arachne-terracotta">{t.harmonyOptimal}</span>
+                    <h3 className="font-serif text-base font-bold text-arachne-ink">{t.harmonyModalTitle}</h3>
+                  </div>
+                  <button onClick={() => setShowHarmonyModal(false)} className="text-zinc-400 hover:text-black">
+                    <Icon name="close" className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <p className="text-xs text-arachne-inkMuted leading-relaxed">{t.harmonyModalSub}</p>
+
+                <div className="space-y-3 pt-1">
+                  {[
+                    { label: t.harmonyFactorColor, score: 98 },
+                    { label: t.harmonyFactorThermal, score: 94 },
+                    { label: t.harmonyFactorOccasion, score: 96 },
+                    { label: t.harmonyFactorSilhouette, score: 95 }
+                  ].map(factor => (
+                    <div key={factor.label} className="space-y-1">
+                      <div className="flex justify-between text-xs">
+                        <span className="text-arachne-ink font-medium">{factor.label}</span>
+                        <span className="font-mono font-bold text-arachne-terracotta">{factor.score}%</span>
+                      </div>
+                      <div className="w-full h-1.5 bg-arachne-surface rounded-full overflow-hidden">
+                        <div className="h-full bg-arachne-terracotta rounded-full" style={{ width: `${factor.score}%` }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="pt-2 border-t border-arachne-border">
+                  <button
+                    onClick={() => setShowHarmonyModal(false)}
+                    className="w-full py-2.5 text-xs font-semibold rounded-lg bg-arachne-ink text-white shadow-subtle"
+                  >
+                    {t.closeBtn}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* =============================================================== */}
+          {/* MODAL DE FICHA TÉCNICA Y EDICIÓN EN ARMARIO                     */}
+          {/* =============================================================== */}
+          {selectedGarmentModal && (
+            <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+              <div className="bg-white w-full max-w-sm rounded-t-2xl sm:rounded-2xl overflow-hidden shadow-floating border border-arachne-border p-5 space-y-3.5 animate-fadeInScale">
+                <div className="flex items-center justify-between pb-2 border-b border-arachne-border">
+                  <span className="text-[10px] font-mono font-bold uppercase text-arachne-terracotta">
+                    {isEditingGarment ? t.editGarmentTitle : t.garmentDetailTitle}
+                  </span>
+                  <button onClick={() => setSelectedGarmentModal(null)} className="text-zinc-400 hover:text-black">
+                    <Icon name="close" className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="h-44 rounded-lg overflow-hidden bg-arachne-surface border border-arachne-border">
+                  <img src={selectedGarmentModal.imageUrl} alt={selectedGarmentModal.name} className="w-full h-full object-cover" />
+                </div>
+
+                {!isEditingGarment ? (
+                  <>
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-arachne-terracotta uppercase tracking-wider">
+                          {selectedGarmentModal.brand} · {t.sizeLabel}: {selectedGarmentModal.size || "M"}
+                        </span>
+                        <span className="text-[10px] font-mono text-arachne-inkMuted">{selectedGarmentModal.timesWorn} {t.timesWornLabel}</span>
+                      </div>
+                      <h3 className="font-serif text-lg font-bold text-arachne-ink">{selectedGarmentModal.name}</h3>
+                      <p className="text-xs text-arachne-inkMuted">{selectedGarmentModal.fabric}</p>
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs py-2 border-y border-arachne-border">
+                      <div>
+                        <span className="text-[10px] text-arachne-inkMuted block">{t.formalityLabel}</span>
+                        <span className="font-bold">{selectedGarmentModal.formality} / 10</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-[10px] text-arachne-inkMuted block">{t.toggleAvailability}</span>
+                        <span className={`font-semibold ${selectedGarmentModal.state === 'available' ? 'text-arachne-sage' : 'text-zinc-500'}`}>
+                          {selectedGarmentModal.state === 'available' ? t.availableState : t.unavailableState}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-2 pt-1">
+                      <button
+                        onClick={() => setIsEditingGarment(true)}
+                        className="flex-1 py-2 rounded-lg bg-arachne-surface hover:bg-arachne-accentSand/40 text-arachne-ink text-xs font-semibold border border-arachne-border transition-colors flex items-center justify-center space-x-1.5"
+                      >
+                        <Icon name="edit" className="w-3.5 h-3.5" />
+                        <span>{t.editAttributesBtn}</span>
+                      </button>
+
+                      <button
+                        onClick={(e) => {
+                          toggleAvailability(selectedGarmentModal.id, e);
+                          setSelectedGarmentModal(prev => ({
+                            ...prev,
+                            state: prev.state === 'available' ? 'unavailable' : 'available'
+                          }));
+                        }}
+                        className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-colors ${
+                          selectedGarmentModal.state === 'available'
+                            ? 'bg-zinc-800 text-white'
+                            : 'bg-arachne-sage text-white'
+                        }`}
+                      >
+                        {selectedGarmentModal.state === 'available' ? t.unavailableState : t.availableState}
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="space-y-2.5">
+                    <div>
+                      <label className="text-[10px] font-bold uppercase text-arachne-inkMuted block">{t.brandLabel} *</label>
+                      <input
+                        type="text"
+                        value={editedGarmentData.brand}
+                        onChange={(e) => setEditedGarmentData({ ...editedGarmentData, brand: e.target.value })}
+                        className="w-full text-xs p-2 rounded border border-arachne-border outline-none font-semibold"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-arachne-inkMuted block">{t.garmentNameLabel}</label>
+                        <input
+                          type="text"
+                          value={editedGarmentData.name}
+                          onChange={(e) => setEditedGarmentData({ ...editedGarmentData, name: e.target.value })}
+                          className="w-full text-xs p-2 rounded border border-arachne-border outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-arachne-inkMuted block">{t.sizeLabel}</label>
+                        <input
+                          type="text"
+                          value={editedGarmentData.size || ""}
+                          onChange={(e) => setEditedGarmentData({ ...editedGarmentData, size: e.target.value })}
+                          className="w-full text-xs p-2 rounded border border-arachne-border outline-none"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold uppercase text-arachne-inkMuted block">{t.fabricLabel}</label>
+                      <input
+                        type="text"
+                        value={editedGarmentData.fabric}
+                        onChange={(e) => setEditedGarmentData({ ...editedGarmentData, fabric: e.target.value })}
+                        className="w-full text-xs p-2 rounded border border-arachne-border outline-none"
+                      />
+                    </div>
+
+                    <div className="flex space-x-2 pt-2">
+                      <button
+                        onClick={() => setIsEditingGarment(false)}
+                        className="flex-1 py-2 text-xs font-semibold rounded border border-arachne-border text-arachne-ink"
+                      >
+                        {t.cancelBtn}
+                      </button>
+                      <button
+                        onClick={handleSaveGarmentEdits}
+                        className="flex-1 py-2 text-xs font-semibold rounded bg-arachne-ink text-white"
+                      >
+                        {t.saveChanges}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* =============================================================== */}
+          {/* MODAL: SUSTITUIR PIEZAS DEL OUTFIT                              */}
+          {/* =============================================================== */}
+          {showPieceEditorModal && currentOutfit && (
+            <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+              <div className="bg-white w-full max-w-sm rounded-t-2xl sm:rounded-2xl overflow-hidden shadow-floating border border-arachne-border p-5 space-y-3.5 animate-fadeInScale max-h-[85vh] flex flex-col">
+                <div className="flex items-center justify-between pb-2 border-b border-arachne-border">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase text-arachne-sage">{t.selectedLookHeading}</span>
+                    <h3 className="font-serif text-sm font-bold text-arachne-ink">{t.editOutfitBtn}</h3>
+                  </div>
+                  <button onClick={() => setShowPieceEditorModal(false)} className="text-zinc-400 hover:text-black">
+                    <Icon name="close" className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+                  {['outerwear', 'top', 'bottom', 'footwear'].map(cat => {
+                    const item = currentOutfit[cat];
+                    const availableReplacements = wardrobe.filter(w => w.category === cat && w.state === 'available' && w.id !== item?.id);
+
+                    return (
+                      <div key={cat} className="p-2.5 rounded-lg border border-arachne-border bg-arachne-surface/30 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold uppercase text-arachne-inkMuted">{cat}</span>
+                          <span className="text-xs font-semibold text-arachne-ink truncate max-w-[170px]">
+                            {item ? `${item.brand} · ${item.name}` : "Ninguno"}
+                          </span>
+                        </div>
+
+                        {availableReplacements.length > 0 && (
+                          <div className="flex space-x-1.5 overflow-x-auto no-scrollbar pt-1">
+                            {availableReplacements.slice(0, 3).map(rep => (
+                              <button
+                                key={rep.id}
+                                onClick={() => handleSwapGarment(cat, rep)}
+                                className="text-[10px] py-1 px-2 rounded border border-arachne-border bg-white hover:border-arachne-ink text-left truncate max-w-[130px]"
+                              >
+                                {rep.brand} · {rep.name}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="pt-2 border-t border-arachne-border flex space-x-2">
+                  <button
+                    onClick={() => setShowPieceEditorModal(false)}
+                    className="flex-1 py-2.5 text-xs font-semibold rounded-lg border border-arachne-border text-arachne-ink"
+                  >
+                    {t.closeBtn}
+                  </button>
+                  <button
+                    onClick={handleConfirmWearToday}
+                    className="flex-1 py-2.5 text-xs font-semibold rounded-lg bg-arachne-ink text-white"
+                  >
+                    {t.wearConfirmedBtn}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* */}
+          {/* =============================================================== */}
+          {/* MODAL: INSPECCIÓN VISUAL UNIFICADA DE OUTFIT GUARDADO ("GUARDADOS") */}
+          {/* =============================================================== */}
+          {inspectedLook && (
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fadeInScale">
+              <div className="bg-white w-full max-w-sm rounded-t-2xl sm:rounded-2xl overflow-hidden shadow-floating border border-arachne-border p-5 space-y-4 max-h-[90vh] flex flex-col">
+                
+                <div className="flex items-center justify-between pb-2 border-b border-arachne-border">
+                  <div>
+                    <span className="text-[10px] font-mono font-bold uppercase text-arachne-terracotta">{inspectedLook.date}</span>
+                    <h3 className="font-serif text-base font-bold text-arachne-ink">{t.inspectUnifiedTitle}</h3>
+                  </div>
+                  <button onClick={() => setInspectedLook(null)} className="text-zinc-400 hover:text-black">
+                    <Icon name="close" className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-xs px-2.5 py-1 rounded-full bg-arachne-surface font-semibold text-arachne-ink border border-arachne-border">
+                    {inspectedLook.occasion}
+                  </span>
+                  <span className="text-xs font-mono font-bold text-arachne-terracotta bg-arachne-surface px-2.5 py-1 rounded-full border border-arachne-border">
+                    {t.harmonyScoreLabel}: {inspectedLook.harmonyScore || 96}%
+                  </span>
+                </div>
+
+                {/* COMPOSICIÓN VISUAL UNIFICADA DEL OUTFIT CON FOTOS REALES */}
+                <div className="bg-arachne-surface/50 p-2.5 rounded-xl border border-arachne-border space-y-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-arachne-inkMuted block">
+                    {t.inspectPiecesHeading}
+                  </span>
+                  
+                  <div className="grid grid-cols-2 gap-2">
+                    {inspectedLook.garments && inspectedLook.garments.length > 0 ? (
+                      inspectedLook.garments.map((g, idx) => (
+                        <div key={idx} className="h-28 rounded-lg overflow-hidden bg-white border border-arachne-border relative shadow-subtle group">
+                          <img src={g.imageUrl} alt={g.name} className="w-full h-full object-cover" />
+                          <div className="absolute bottom-1 left-1 right-1 bg-black/65 backdrop-blur-xs text-white text-[9px] px-1.5 py-0.5 rounded truncate">
+                            <strong>{g.brand}</strong> · {g.name}
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="col-span-2 p-3 text-center text-xs text-arachne-inkMuted">
+                        {inspectedLook.garmentNames ? inspectedLook.garmentNames.join(" · ") : "Look archivado"}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <p className="font-serif italic text-xs leading-relaxed text-arachne-ink border-l-2 border-arachne-terracotta/50 pl-2.5 bg-arachne-canvas p-2 rounded">
+                  "{inspectedLook.editorial}"
+                </p>
+
+                <div className="space-y-2 pt-1">
+                  <label className="text-[10px] font-bold uppercase text-arachne-inkMuted block">{t.inspectTagsHeading}</label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {inspectedLook.tags && inspectedLook.tags.map((tg, i) => (
+                      <span key={i} className="text-xs bg-arachne-surface text-arachne-ink px-2.5 py-1 rounded-md border border-arachne-border font-medium">
+                        #{tg}
+                      </span>
+                    ))}
+                  </div>
+
+                  <div className="flex space-x-1.5 pt-1">
+                    <input
+                      type="text"
+                      value={newTagInput}
+                      onChange={(e) => setNewTagInput(e.target.value)}
+                      placeholder={t.addTagPlaceholder}
+                      className="flex-1 text-xs p-2 rounded-lg border border-arachne-border outline-none focus:border-arachne-ink"
+                    />
+                    <button
+                      onClick={() => handleAddTagToLook(inspectedLook.id)}
+                      className="px-3 py-2 bg-arachne-ink text-white rounded-lg text-xs font-semibold active:scale-95 transition-transform"
+                    >
+                      {t.addTagBtn}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-arachne-border">
+                  <button
+                    onClick={() => setInspectedLook(null)}
+                    className="w-full py-2.5 text-xs font-semibold rounded-lg bg-arachne-ink text-white shadow-subtle"
+                  >
+                    {t.closeBtn}
+                  </button>
+                </div>
+
+              </div>
+            </div>
+          )}
+
+          {/* */}
+          {/* =============================================================== */}
+          {/* MODAL: ESTUDIO DE CAPTURA RÁPIDA (BOTÓN CENTRAL)                 */}
+          {/* =============================================================== */}
+          {showCaptureModal && (
+            <div className="fixed inset-0 bg-black/45 backdrop-blur-xs z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fadeInScale">
+              <div className="bg-white w-full max-w-sm rounded-t-2xl sm:rounded-2xl overflow-hidden shadow-floating border border-arachne-border p-5 space-y-4">
+                <div className="flex items-center justify-between pb-2 border-b border-arachne-border">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase text-arachne-terracotta">{t.scanTitle}</span>
+                    <h3 className="font-serif text-base font-bold text-arachne-ink">{t.scanSub}</h3>
+                  </div>
+                  <button onClick={() => { setShowCaptureModal(false); setCaptureStage('select'); }} className="text-zinc-400 hover:text-black">
+                    <Icon name="close" className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {captureStage === 'select' ? (
+                  <div className="space-y-3 py-2">
+                    <p className="text-xs text-arachne-inkMuted leading-relaxed">{t.captureStudioPrompt}</p>
+
+                    <input
+                      type="file"
+                      ref={cameraInputRef}
+                      accept="image/*"
+                      capture="environment"
+                      className="hidden"
+                      onChange={(e) => handleImageFile(e.target.files[0])}
+                    />
+
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => handleImageFile(e.target.files[0])}
+                    />
+
+                    <button
+                      onClick={() => cameraInputRef.current?.click()}
+                      className="w-full p-3.5 rounded-xl border border-arachne-border hover:border-arachne-terracotta bg-arachne-surface/40 hover:bg-white text-left transition-all flex items-center space-x-3 group"
+                    >
+                      <div className="w-10 h-10 rounded-full bg-arachne-terracottaLight text-arachne-terracotta flex items-center justify-center">
+                        <Icon name="cameraCenter" className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-arachne-ink group-hover:text-arachne-terracotta">{t.takePhotoOption}</h4>
+                        <span className="text-[10px] text-arachne-inkMuted">{t.takePhotoSub}</span>
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      className="w-full p-3.5 rounded-xl border border-arachne-border hover:border-arachne-terracotta bg-arachne-surface/40 hover:bg-white text-left transition-all flex items-center space-x-3 group"
+                    >
+                      <div className="w-10 h-10 rounded-full bg-arachne-sageLight text-arachne-sage flex items-center justify-center">
+                        <Icon name="upload" className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-arachne-ink group-hover:text-arachne-terracotta">{t.uploadPhotoOption}</h4>
+                        <span className="text-[10px] text-arachne-inkMuted">{t.uploadPhotoSub}</span>
+                      </div>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="h-44 rounded-xl overflow-hidden bg-arachne-surface border border-arachne-border relative">
+                      <img src={capturedPhotoUrl} alt="Captured" className="w-full h-full object-cover" />
+                      <div className="absolute bottom-2 left-2 bg-black/65 backdrop-blur-xs text-white text-[10px] px-2.5 py-0.5 rounded-full font-medium">
+                        ✓ WebP 1200px · 180 KB
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-arachne-inkMuted block">{t.brandLabel} *</label>
+                        <input
+                          type="text"
+                          value={capturedGarmentData.brand}
+                          onChange={(e) => setCapturedGarmentData({ ...capturedGarmentData, brand: e.target.value })}
+                          placeholder="Arket, Zara, COS, Vintage..."
+                          className="w-full text-xs p-2 rounded-lg border border-arachne-border outline-none font-semibold focus:border-arachne-ink"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[10px] font-bold uppercase text-arachne-inkMuted block">{t.garmentNameLabel}</label>
+                          <input
+                            type="text"
+                            value={capturedGarmentData.name}
+                            onChange={(e) => setCapturedGarmentData({ ...capturedGarmentData, name: e.target.value })}
+                            className="w-full text-xs p-2 rounded-lg border border-arachne-border outline-none focus:border-arachne-ink"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold uppercase text-arachne-inkMuted block">{t.sizeLabel}</label>
+                          <input
+                            type="text"
+                            value={capturedGarmentData.size}
+                            onChange={(e) => setCapturedGarmentData({ ...capturedGarmentData, size: e.target.value })}
+                            placeholder="M, 40, Única..."
+                            className="w-full text-xs p-2 rounded-lg border border-arachne-border outline-none focus:border-arachne-ink"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-arachne-inkMuted block">{t.categoryLabel}</label>
+                        <select
+                          value={capturedGarmentData.category}
+                          onChange={(e) => setCapturedGarmentData({ ...capturedGarmentData, category: e.target.value })}
+                          className="w-full text-xs p-2 rounded-lg border border-arachne-border outline-none bg-white focus:border-arachne-ink"
+                        >
+                          <option value="top">{t.optTop}</option>
+                          <option value="bottom">{t.optBottom}</option>
+                          <option value="outerwear">{t.optOuter}</option>
+                          <option value="footwear">{t.optFootwear}</option>
+                          <option value="accessory">{t.optAccessory}</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 flex space-x-2">
+                      <button
+                        onClick={() => { setCapturedPhotoUrl(null); setCaptureStage('select'); }}
+                        className="flex-1 py-2 text-xs font-semibold rounded-lg border border-arachne-border text-arachne-ink hover:bg-arachne-surface"
+                      >
+                        {t.retakePhotoBtn}
+                      </button>
+                      <button
+                        onClick={handleSaveCapturedGarment}
+                        className="flex-1 py-2 text-xs font-semibold rounded-lg bg-arachne-ink text-white"
+                      >
+                        {t.saveToWardrobeBtn}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* */}
+          {/* BARRA DE NAVEGACIÓN INFERIOR ELEVADA */}
+          <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white/95 backdrop-blur-md border-t border-arachne-border z-40 px-4 py-2 flex items-center justify-between">
+            
+            {/* HOY (#svg-inicio-b) */}
+            <button
+              onClick={() => setCurrentView('today')}
+              className={`flex flex-col items-center flex-1 transition-colors ${
+                currentView === 'today' ? 'text-arachne-ink font-bold' : 'text-arachne-inkMuted hover:text-arachne-ink'
+              }`}
+            >
+              <Icon name="homeToday" className="w-5 h-5" />
+              <span className="text-[10px] mt-1 tracking-tight">{t.navToday}</span>
+            </button>
+
+            {/* ARMARIO */}
+            <button
+              onClick={() => setCurrentView('wardrobe')}
+              className={`flex flex-col items-center flex-1 transition-colors ${
+                currentView === 'wardrobe' ? 'text-arachne-ink font-bold' : 'text-arachne-inkMuted hover:text-arachne-ink'
+              }`}
+            >
+              <Icon name="hanger" className="w-5 h-5" />
+              <span className="text-[10px] mt-1 tracking-tight">{t.navWardrobe}</span>
+            </button>
+
+            {/* BOTÓN CENTRAL DESTACADO: CAPTURA RÁPIDA (CÁMARA TELEMÉTRICA) */}
+            <div className="flex-1 flex justify-center -mt-6">
+              <button
+                onClick={() => {
+                  setCaptureStage('select');
+                  setShowCaptureModal(true);
+                }}
+                className="w-14 h-14 rounded-full bg-gradient-to-tr from-arachne-terracotta to-amber-600 text-white flex flex-col items-center justify-center shadow-prominent active:scale-95 transition-all ring-4 ring-arachne-terracotta/25 hover:ring-arachne-terracotta/40"
+                title={t.navCapture}
+              >
+                <Icon name="cameraCenter" className="w-6 h-6 stroke-white" />
+                <span className="text-[8px] font-bold tracking-tight uppercase mt-0.5">Captura</span>
+              </button>
+            </div>
+
+            {/* GUARDADOS (#svg-guardado-a) */}
+            <button
+              onClick={() => setCurrentView('history')}
+              className={`flex flex-col items-center flex-1 transition-colors ${
+                currentView === 'history' ? 'text-arachne-ink font-bold' : 'text-arachne-inkMuted hover:text-arachne-ink'
+              }`}
+            >
+              <Icon name="bookmarkGuardados" className="w-5 h-5" />
+              <span className="text-[10px] mt-1 tracking-tight">{t.navSaved}</span>
+            </button>
+
+            {/* PERFIL */}
+            <button
+              onClick={() => setCurrentView('profile')}
+              className={`flex flex-col items-center flex-1 transition-colors ${
+                currentView === 'profile' ? 'text-arachne-ink font-bold' : 'text-arachne-inkMuted hover:text-arachne-ink'
+              }`}
+            >
+              <Icon name="user" className="w-5 h-5" />
+              <span className="text-[10px] mt-1 tracking-tight">{t.navProfile}</span>
+            </button>
+
+          </nav>
+
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<ArachneApp />);
+  </script>
+</body>
+</html>
