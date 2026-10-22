@@ -53,6 +53,12 @@
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <!-- Babel Standalone para JSX en navegador -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script>
+    window.ARACHNE_REMOTE_ENDPOINT = "";
+    window.ARACHNE_TIMEOUT_MS = 8000;
+    window.ARACHNE_MIN_VISUAL_MS = 1200;
+    window.__ARACHNE_ENGINE_READY__ = import('./src/engine/browser.js');
+  </script>
 
   <style>
     body {
@@ -932,9 +938,14 @@
       const [generatedCount, setGeneratedCount] = useState(1);
 
       // Estado de Generación, Tips y Modal de Armonía
-      const [isGenerating, setIsGenerating] = useState(false);
+      const [generationState, setGenerationState] = useState('idle'); // idle | loading | success | error
+      const [generationError, setGenerationError] = useState(null);
+      const [generationWarning, setGenerationWarning] = useState(null);
+      const [showRetryHint, setShowRetryHint] = useState(false);
+      const generationRequestRef = useRef({ id: 0, abortController: null, waitTimer: null });
       const [showHarmonyModal, setShowHarmonyModal] = useState(false);
       const [currentTipIndex, setCurrentTipIndex] = useState(0);
+      const isGenerating = generationState === 'loading';
 
       //      // Rotación de tips calibrada a 3900ms para permitir lectura asimilada
       useEffect(() => {
@@ -959,6 +970,7 @@
         tempC: 17,
         condition: "cloudy",
         rainProb: 15,
+        windKph: null,
         location: "Barcelona, ES"
       });
 
@@ -966,6 +978,13 @@
       const [eventContext, setEventContext] = useState('office');
       const [dualJourney, setDualJourney] = useState(false);
       const [dualJourneyType, setDualJourneyType] = useState('dinner');
+
+      useEffect(() => {
+        if (generationState === 'loading' && generationRequestRef.current.abortController) {
+          generationRequestRef.current.abortController.abort();
+          setGenerationState('idle');
+        }
+      }, [eventContext, dualJourney, dualJourneyType]);
 
       // Outfit Prescrito
       const [currentOutfit, setCurrentOutfit] = useState(null);
@@ -1015,105 +1034,148 @@
       const [wardrobeFilter, setWardrobeFilter] = useState('all');
 
       //      // =========================================================================
-      // MOTOR HÍBRIDO EN DOS ETAPAS (Poda Heurística + Estilista Cognitivo - 6.8s)
+      // MOTOR MODULAR ASÍNCRONO (validación + búsqueda heurística + proveedor local/remoto)
       // =========================================================================
-      const generatePrescription = (extraIntent = null) => {
-        setIsGenerating(true);
+      const cancelGeneration = () => {
+        if (generationRequestRef.current.abortController) {
+          generationRequestRef.current.abortController.abort();
+        }
+        if (generationRequestRef.current.waitTimer) {
+          clearTimeout(generationRequestRef.current.waitTimer);
+          generationRequestRef.current.waitTimer = null;
+        }
+        setGenerationState('idle');
+      };
+
+      useEffect(() => () => cancelGeneration(), []);
+
+      const resetInteractionState = () => {
+        setSwipeState({ offsetX: 0, isDragging: false, startX: 0, startY: 0, isHorizontal: null });
+      };
+
+      const mapEngineOutfitToUI = (engineOutfit, score, editorial, transitionLayer, intentUsed) => ({
+        id: `outfit_${Date.now()}`,
+        top: engineOutfit.top || null,
+        bottom: engineOutfit.bottom || null,
+        outerwear: engineOutfit.outerwear || null,
+        footwear: engineOutfit.footwear || null,
+        transitionLayer: transitionLayer || null,
+        editorial,
+        harmonyScore: score?.overall ?? 0,
+        scoreMeta: score || null,
+        lastIntent: intentUsed || null,
+        breakdown: score?.factors || {}
+      });
+
+      const generatePrescription = async (extraIntent = null) => {
         setShowTweakDrawer(false);
+        setGenerationError(null);
+        setGenerationWarning(null);
+        setShowRetryHint(false);
 
-        // Calibración cognitiva de 6800 ms (6.8 segundos) exactos
-        setTimeout(() => {
-          // ETAPA 1: PODA DETERMINISTA (Prendas disponibles y confort térmico)
-          const availablePool = wardrobe.filter(g => g.state === 'available');
-          
-          let thermalPool = availablePool.filter(g => 
-            weather.tempC >= (g.thermalRange.minTempC - 4) &&
-            weather.tempC <= (g.thermalRange.maxTempC + 4)
-          );
+        cancelGeneration();
 
-          if (thermalPool.length < 3) thermalPool = availablePool;
+        const requestId = generationRequestRef.current.id + 1;
+        const abortController = new AbortController();
+        generationRequestRef.current = {
+          id: requestId,
+          abortController,
+          waitTimer: setTimeout(() => {
+            if (generationRequestRef.current.id === requestId) setShowRetryHint(true);
+          }, 10000)
+        };
 
-          // ETAPA 2: CURADURÍA ESTILÍSTICA COGNITIVA
-          const tops = thermalPool.filter(g => g.category === 'top');
-          const bottoms = thermalPool.filter(g => g.category === 'bottom');
-          const outers = thermalPool.filter(g => g.category === 'outerwear');
-          const shoes = thermalPool.filter(g => g.category === 'footwear');
+        setGenerationState('loading');
+        const startedAt = Date.now();
 
-          let chosenTop = tops[0] || availablePool.find(g => g.category === 'top');
-          let chosenBottom = bottoms[0] || availablePool.find(g => g.category === 'bottom');
-          let chosenOuter = outers[0] || null;
-          let chosenShoes = shoes[0] || availablePool.find(g => g.category === 'footwear');
+        try {
+          await (window.__ARACHNE_ENGINE_READY__ || Promise.resolve());
+          const engine = window.__ARACHNE_ENGINE__;
 
-          // Aplicación de intenciones de afinación (Tweak Intentions)
-          if (extraIntent === 'warmer' && outers.length > 0) {
-            chosenOuter = outers.find(o => o.subCategory === 'trench') || outers[0];
-          } else if (extraIntent === 'formal') {
-            chosenTop = tops.find(t => t.subCategory === 'shirt') || tops[0];
-            chosenShoes = shoes.find(s => s.subCategory === 'loafers') || shoes[0];
-          } else if (extraIntent === 'shoes' && shoes.length > 1) {
-            chosenShoes = shoes.find(s => s.id !== chosenShoes.id) || shoes[1];
-          } else if (extraIntent === 'lighter') {
-            chosenOuter = null;
-          } else if (extraIntent === 'active') {
-            chosenTop = tops.find(t => t.subCategory === 't-shirt') || tops[0];
-            chosenShoes = shoes.find(s => s.subCategory === 'sneakers') || shoes[0];
-          }
+          if (!engine) throw new Error('Motor no disponible.');
 
-          // Capa modular de transición para doble evento
-          let transitionLayer = null;
-          if (dualJourney) {
-            if (dualJourneyType === 'dinner') {
-              transitionLayer = {
-                title: lang === 'es' ? "Capa de Transición para Cena" : (lang === 'en' ? "Transition Layer for Dinner" : "Capa de Transició per Sopar"),
-                item: wardrobe.find(g => g.id === 'g_01') || chosenOuter
-              };
-            } else if (dualJourneyType === 'gym') {
-              transitionLayer = {
-                title: lang === 'es' ? "Recambio Deportivo (Gimnasio)" : (lang === 'en' ? "Active Gear (Gym)" : "Recanvi Esportiu (Gimnàs)"),
-                item: { name: "Bolsa Gym + Calzado Deportivo", brand: "Pack Técnico", size: "Única" }
-              };
-            } else {
-              transitionLayer = {
-                title: lang === 'es' ? "Detalle Informal para Noche" : (lang === 'en' ? "Night Detail" : "Detall Informal per Nit"),
-                item: wardrobe.find(g => g.category === 'outerwear')
-              };
-            }
-          }
-
-          // Justificación editorial concisa
-          let rationale = "";
-          const bottomName = chosenBottom?.name.toLowerCase() || 'pantalón';
-          if (lang === 'es') {
-            rationale = `Sinergia tonal entre la base neutra y la caída del ${bottomName}. Equilibrio calibrado para ${weather.tempC}°C en agenda de ${eventContext === 'office' ? 'oficina' : 'ciudad'}.`;
-          } else if (lang === 'en') {
-            rationale = `Tonal synergy between the neutral base and ${bottomName} silhouette. Calibrated for ${weather.tempC}°C in a ${eventContext} routine.`;
-          } else {
-            rationale = `Sinergia tonal entre la base neutra i la caiguda del ${bottomName}. Equilibri de confort per a ${weather.tempC}°C en agenda d'${eventContext}.`;
-          }
-
-          const breakdown = {
-            colorimetry: 98,
-            thermalFit: 94,
-            occasionFit: 96,
-            silhouetteProportion: 95
-          };
-
-          setCurrentOutfit({
-            id: "outfit_" + Date.now(),
-            top: chosenTop,
-            bottom: chosenBottom,
-            outerwear: chosenOuter,
-            footwear: chosenShoes,
-            transitionLayer: transitionLayer,
-            editorial: rationale,
-            harmonyScore: 96,
-            breakdown: breakdown
+          const response = await engine.generate({
+            wardrobe,
+            context: {
+              occasion: eventContext,
+              tempC: weather?.tempC,
+              rainProb: weather?.rainProb,
+              windKph: weather?.windKph ?? null,
+              lang,
+              dualJourney: {
+                enabled: dualJourney,
+                type: dualJourney ? dualJourneyType : null
+              }
+            },
+            intent: extraIntent || 'default',
+            currentOutfit,
+            history,
+            signal: abortController.signal
           });
 
+          if (generationRequestRef.current.id !== requestId) return;
+
+          if (response.provider === 'local' && (response.diagnostics?.warnings || []).some(w => w.code === 'REMOTE_FALLBACK_LOCAL')) {
+            setGenerationWarning(lang === 'en'
+              ? 'Remote provider failed; local engine used explicitly.'
+              : lang === 'ca'
+                ? 'El proveïdor remot ha fallat; s’ha utilitzat explícitament el motor local.'
+                : 'El proveedor remoto falló; se usó explícitamente el motor local.');
+          }
+
+          const runtimeMin = Math.min(2500, Number(window.ARACHNE_MIN_VISUAL_MS || 1200));
+          const elapsed = Date.now() - startedAt;
+          if (response.result?.status === 'success' && elapsed < runtimeMin) {
+            await new Promise((resolve) => setTimeout(resolve, runtimeMin - elapsed));
+          }
+
+          if (response.result?.status !== 'success') {
+            setGenerationState('error');
+            setGenerationError(response.result?.explanation || (lang === 'en' ? 'No valid outfit could be generated.' : lang === 'ca' ? 'No s’ha pogut generar un outfit vàlid.' : 'No se pudo generar un outfit válido.'));
+            return;
+          }
+
+          const mapped = mapEngineOutfitToUI(
+            response.result.outfit,
+            response.result.score,
+            response.result.editorial,
+            response.result.transitionLayer,
+            extraIntent || 'default'
+          );
+
+          if (!mapped.top || !mapped.bottom || !mapped.footwear) {
+            setGenerationState('error');
+            setGenerationError(lang === 'en' ? 'The engine returned an incomplete outfit.' : lang === 'ca' ? 'El motor ha retornat un outfit incomplet.' : 'El motor devolvió un outfit incompleto.');
+            return;
+          }
+
+          setCurrentOutfit(mapped);
           setGeneratedCount(prev => prev + 1);
-          setSwipeState({ offsetX: 0, isDragging: false, startX: 0, startY: 0, isHorizontal: null });
-          setIsGenerating(false);
-        }, 6800);
+          resetInteractionState();
+          setGenerationState('success');
+
+          const warningText = (response.diagnostics?.warnings || []).map(w => w.message).join(' · ');
+          if (warningText) setGenerationWarning(warningText);
+        } catch (error) {
+          if (error?.name === 'AbortError') {
+            if (generationRequestRef.current.id === requestId) {
+              setGenerationState('idle');
+              setGenerationError(lang === 'en' ? 'Generation canceled.' : lang === 'ca' ? 'Generació cancel·lada.' : 'Generación cancelada.');
+            }
+            return;
+          }
+          if (generationRequestRef.current.id !== requestId) return;
+          setGenerationState('error');
+          setGenerationError(error?.message || (lang === 'en' ? 'Unexpected generation error.' : lang === 'ca' ? 'Error inesperat en la generació.' : 'Error inesperado en la generación.'));
+        } finally {
+          if (generationRequestRef.current.id === requestId) {
+            if (generationRequestRef.current.waitTimer) {
+              clearTimeout(generationRequestRef.current.waitTimer);
+              generationRequestRef.current.waitTimer = null;
+            }
+            generationRequestRef.current.abortController = null;
+          }
+        }
       };
 
       //      // -----------------------------------------------------------------------
@@ -1171,21 +1233,49 @@
         }
       };
 
-      // Sustituir prenda en el look con recalibración dinámica de armonía
+      // Sustituir prenda en el look con recalibración heurística determinista
       const handleSwapGarment = (category, replacementGarment) => {
         setCurrentOutfit(prev => {
           if (!prev) return prev;
           const updated = { ...prev, [category]: replacementGarment };
-          const bottomName = updated.bottom?.name.toLowerCase() || 'pantalón';
-          let newEditorial = lang === 'es'
-            ? `Sinergia tonal renovada incorporando ${replacementGarment.name.toLowerCase()} con ${bottomName}. Calibrado para ${weather.tempC}°C.`
+          const scoreOutfit = window.__ARACHNE_SCORE_OUTFIT__;
+          const score = scoreOutfit
+            ? scoreOutfit(
+                {
+                  top: updated.top,
+                  bottom: updated.bottom,
+                  outerwear: updated.outerwear,
+                  footwear: updated.footwear
+                },
+                {
+                  occasion: eventContext,
+                  tempC: weather?.tempC,
+                  rainProb: weather?.rainProb,
+                  windKph: weather?.windKph ?? null,
+                  lang,
+                  intent: updated.lastIntent || 'default',
+                  dualJourney: { enabled: dualJourney, type: dualJourneyType },
+                  recentOutfitKeys: history.slice(0, 12).map(entry => [entry.top?.id, entry.bottom?.id, entry.outerwear?.id || 'none', entry.footwear?.id].join('|'))
+                }
+              )
+            : null;
+
+          const factorSummary = score
+            ? Object.entries(score.factors).map(([k, v]) => `${k}: ${v.reason}`).join(' | ')
+            : '';
+
+          const newEditorial = lang === 'es'
+            ? `Sustitución en ${category} con ${replacementGarment.name}. ${factorSummary}`
             : (lang === 'en'
-              ? `Renewed tonal synergy pairing ${replacementGarment.name.toLowerCase()} with ${bottomName}. Calibrated for ${weather.tempC}°C.`
-              : `Sinergia tonal renovada incorporant ${replacementGarment.name.toLowerCase()} amb ${bottomName}. Calibrat per a ${weather.tempC}°C.`);
+              ? `Swap on ${category} with ${replacementGarment.name}. ${factorSummary}`
+              : `Substitució a ${category} amb ${replacementGarment.name}. ${factorSummary}`);
+
           return {
             ...updated,
             editorial: newEditorial,
-            harmonyScore: Math.min(99, Math.max(91, (prev.harmonyScore || 96) + (Math.random() > 0.5 ? 1 : -1)))
+            harmonyScore: score?.overall ?? updated.harmonyScore ?? 0,
+            scoreMeta: score || updated.scoreMeta,
+            breakdown: score?.factors || updated.breakdown
           };
         });
         showToast(t.garmentUpdatedAlert);
@@ -1211,15 +1301,26 @@
           return item;
         }));
 
+        const occasionMap = {
+          office: t.eventOffice,
+          casual: t.eventCasual,
+          dinner: t.eventDinner,
+          weekend: t.eventWeekend
+        };
         const newEntry = {
           id: "hist_" + Date.now(),
           date: lang === 'es' ? "Hoy, confirmado" : (lang === 'en' ? "Today, confirmed" : "Avui, confirmat"),
-          occasion: eventContext === 'office' ? t.eventOffice : t.eventCasual,
-          tags: [eventContext === 'office' ? "Jornada Laboral" : "Urbano"],
+          occasion: occasionMap[eventContext] || eventContext,
+          tags: [eventContext, ...(dualJourney ? [dualJourneyType] : [])],
           garments: wornGarments,
+          top: currentOutfit.top || null,
+          bottom: currentOutfit.bottom || null,
+          outerwear: currentOutfit.outerwear || null,
+          footwear: currentOutfit.footwear || null,
           garmentNames: wornGarments.map(g => g.name),
           editorial: currentOutfit.editorial,
-          harmonyScore: currentOutfit.harmonyScore || 96
+          harmonyScore: currentOutfit.harmonyScore ?? 0,
+          breakdown: currentOutfit.breakdown || {}
         };
 
         setHistory(prev => [newEntry, ...prev]);
@@ -1694,7 +1795,41 @@
                       <div className="w-40 h-1 bg-arachne-surface rounded-full overflow-hidden">
                         <div className="h-full bg-arachne-terracotta rounded-full w-2/3 animate-pulse" />
                       </div>
+
+                      <button
+                        onClick={cancelGeneration}
+                        className="text-[10px] font-semibold border border-arachne-border rounded-md px-2.5 py-1 hover:bg-arachne-surface"
+                      >
+                        {lang === 'en' ? 'Cancel' : (lang === 'ca' ? 'Cancel·la' : 'Cancelar')}
+                      </button>
+
+                      {showRetryHint && (
+                        <button
+                          onClick={() => generatePrescription(currentOutfit?.lastIntent || null)}
+                          className="text-[10px] font-semibold text-arachne-terracotta underline"
+                        >
+                          {lang === 'en' ? 'Still working. Retry now?' : (lang === 'ca' ? 'Encara processant. Reintentar ara?' : 'Sigue procesando. ¿Reintentar ahora?')}
+                        </button>
+                      )}
                     </div>
+                  </div>
+                )}
+
+                {generationWarning && !isGenerating && (
+                  <div className="bg-arachne-terracottaLight border border-arachne-border rounded-xl p-3 text-xs text-arachne-ink">
+                    {generationWarning}
+                  </div>
+                )}
+
+                {generationState === 'error' && generationError && (
+                  <div className="bg-white rounded-xl p-4 border border-arachne-border shadow-subtle space-y-2">
+                    <p className="text-xs text-arachne-ink">{generationError}</p>
+                    <button
+                      onClick={() => generatePrescription(currentOutfit?.lastIntent || null)}
+                      className="text-xs font-semibold px-3 py-2 rounded-lg bg-arachne-ink text-white"
+                    >
+                      {lang === 'en' ? 'Retry' : (lang === 'ca' ? 'Torna-ho a provar' : 'Reintentar')}
+                    </button>
                   </div>
                 )}
 
@@ -1762,7 +1897,7 @@
                         title="Ver desglose del cálculo de armonía"
                         className="text-[11px] font-mono bg-arachne-surface hover:bg-arachne-accentSand/40 text-arachne-ink px-2.5 py-1 rounded-full border border-arachne-border transition-colors flex items-center space-x-1 shadow-subtle active:scale-95"
                       >
-                        <span className="font-semibold">{t.harmonyScoreLabel}: {currentOutfit.harmonyScore}%</span>
+                        <span className="font-semibold">{t.harmonyScoreLabel}: {currentOutfit.harmonyScore}/100</span>
                         <Icon name="info" className="w-3.5 h-3.5 text-arachne-terracotta ml-0.5" />
                       </button>
                     </div>
@@ -1823,7 +1958,7 @@
                                 {currentOutfit.transitionLayer.title}
                               </span>
                               <p className="text-[11px] font-medium text-arachne-ink truncate">
-                                {currentOutfit.transitionLayer.item.brand} · {currentOutfit.transitionLayer.item.name}
+                                {currentOutfit.transitionLayer.item?.brand || ""} {currentOutfit.transitionLayer.item?.brand ? "·" : ""} {currentOutfit.transitionLayer.item?.name || ""}
                               </p>
                               <span className="text-[9px] text-arachne-inkMuted">{t.modularLayerTag}</span>
                             </>
@@ -2008,7 +2143,7 @@
                             "{look.editorial}"
                           </p>
                           <span className="text-[10px] font-mono font-bold bg-arachne-surface text-arachne-terracotta px-2 py-0.5 rounded border border-arachne-border">
-                            {look.harmonyScore || 96}%
+                            {look.harmonyScore ?? 0}/100
                           </span>
                         </div>
 
@@ -2493,22 +2628,28 @@
                 <p className="text-xs text-arachne-inkMuted leading-relaxed">{t.harmonyModalSub}</p>
 
                 <div className="space-y-3 pt-1">
-                  {[
-                    { label: t.harmonyFactorColor, score: 98 },
-                    { label: t.harmonyFactorThermal, score: 94 },
-                    { label: t.harmonyFactorOccasion, score: 96 },
-                    { label: t.harmonyFactorSilhouette, score: 95 }
-                  ].map(factor => (
-                    <div key={factor.label} className="space-y-1">
-                      <div className="flex justify-between text-xs">
-                        <span className="text-arachne-ink font-medium">{factor.label}</span>
-                        <span className="font-mono font-bold text-arachne-terracotta">{factor.score}%</span>
+                  {Object.entries(currentOutfit?.breakdown || {}).map(([factorKey, factorData]) => {
+                    const factorScore = Math.round((factorData?.score || 0) * 100);
+                    return (
+                      <div key={factorKey} className="space-y-1">
+                        <div className="flex justify-between text-xs">
+                          <span className="text-arachne-ink font-medium">{factorKey}</span>
+                          <span className="font-mono font-bold text-arachne-terracotta">{factorScore}/100</span>
+                        </div>
+                        <div className="w-full h-1.5 bg-arachne-surface rounded-full overflow-hidden">
+                          <div className="h-full bg-arachne-terracotta rounded-full" style={{ width: `${factorScore}%` }} />
+                        </div>
+                        {factorData?.reason && (
+                          <p className="text-[10px] text-arachne-inkMuted">{factorData.reason}</p>
+                        )}
                       </div>
-                      <div className="w-full h-1.5 bg-arachne-surface rounded-full overflow-hidden">
-                        <div className="h-full bg-arachne-terracotta rounded-full" style={{ width: `${factor.score}%` }} />
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
+                  {currentOutfit?.scoreMeta?.limitations?.length > 0 && (
+                    <p className="text-[10px] text-arachne-inkMuted">
+                      Limitaciones: {currentOutfit.scoreMeta.limitations.join(', ')}
+                    </p>
+                  )}
                 </div>
 
                 <div className="pt-2 border-t border-arachne-border">
@@ -2745,7 +2886,7 @@
                     {inspectedLook.occasion}
                   </span>
                   <span className="text-xs font-mono font-bold text-arachne-terracotta bg-arachne-surface px-2.5 py-1 rounded-full border border-arachne-border">
-                    {t.harmonyScoreLabel}: {inspectedLook.harmonyScore || 96}%
+                    {t.harmonyScoreLabel}: {inspectedLook.harmonyScore ?? 0}/100
                   </span>
                 </div>
 
