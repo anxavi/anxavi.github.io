@@ -1,0 +1,12 @@
+{
+  "name": "arachne-editorial-engine",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "test:engine": "node --test test/engine.test.js",
+    "test:gateway": "node --test test/gateway.test.js",
+    "gateway": "node server/gateway.js"
+  }
+}
