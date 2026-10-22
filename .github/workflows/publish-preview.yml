@@ -1,0 +1,68 @@
+name: Publish isolated ARACHNE preview
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-preview.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+  pages: write
+concurrency:
+  group: arachne-preview-publication
+  cancel-in-progress: false
+jobs:
+  publish-preview:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      SOURCE_COMMIT: 02b3e18a91c090a1f30053a79ee80f95a0d23f0c
+      EXPECTED_INDEX_BLOB: 2142d0bd6d20e2d50d4864eaf2d33560bb00cec9
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+      - name: Verify Pages source and unchanged original
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD:index.html)" = "$EXPECTED_INDEX_BLOB" || { echo 'Original index.html changed; stopping for review.'; exit 1; }
+          test "$(gh api "repos/$GITHUB_REPOSITORY/pages" --jq '(.source.branch == "main") and (.source.path == "/") and (.build_type == "legacy")')" = true || { echo 'Pages is not configured for main/root branch publishing; no settings changed.'; exit 1; }
+      - name: Copy pinned preview files without running PR code
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "$SOURCE_COMMIT"
+          temp_dir=$(mktemp -d)
+          trap 'rm -rf "$temp_dir"' EXIT
+          mkdir -p "$temp_dir/src/engine"
+          git show "$SOURCE_COMMIT:index.html" > "$temp_dir/index-preview.html"
+          modules=(browser.js constants.js contracts.js generator.js index.js provider.js rules.js scoring.js validation.js)
+          for name in "${modules[@]}"; do
+            git show "$SOURCE_COMMIT:src/engine/$name" > "$temp_dir/src/engine/$name"
+          done
+          files=(index-preview.html)
+          for name in "${modules[@]}"; do files+=("src/engine/$name"); done
+          for path in "${files[@]}"; do
+            if [ -L "$path" ]; then echo "Refusing symlink: $path"; exit 1; fi
+            if [ -e "$path" ] && ! cmp -s "$temp_dir/$path" "$path"; then echo "Refusing to overwrite different existing file: $path"; exit 1; fi
+          done
+          mkdir -p src/engine
+          for path in "${files[@]}"; do cp "$temp_dir/$path" "$path"; done
+          test "$(git hash-object index.html)" = "$EXPECTED_INDEX_BLOB"
+          git add -- "${files[@]}"
+          if ! git diff --cached --quiet; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git commit -m 'Publish ARACHNE preview from 02b3e18 without replacing original'
+            git push origin HEAD:main
+          fi
+      - name: Request Pages build
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api --method POST "repos/$GITHUB_REPOSITORY/pages/builds"
+          echo 'Preview files published to main; Pages build requested, deployment still needs verification.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Preview URL: https://anxavi.github.io/index-preview.html' >> "$GITHUB_STEP_SUMMARY"
