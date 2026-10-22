@@ -48,9 +48,12 @@ function selectOrigin(req, allowlist) {
 }
 
 function readBearerToken(req) {
-  const auth = req.headers.authorization || '';
-  const match = auth.match(/^Bearer\s+(.+)$/i);
-  return match ? match[1] : '';
+  const auth = String(req.headers.authorization || '');
+  const prefix = 'bearer ';
+  if (auth.toLowerCase().startsWith(prefix)) {
+    return auth.slice(prefix.length).trim();
+  }
+  return '';
 }
 
 function timeoutPromise(ms) {
