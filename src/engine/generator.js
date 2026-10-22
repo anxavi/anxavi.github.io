@@ -12,7 +12,8 @@ function editorial(lang, context, score, notes = []) {
   const l = OCCASION_LABELS[lang] ? lang : 'es';
   const secondary = context.dualJourney?.enabled ? ` + ${OCCASION_LABELS[l][context.dualJourney.type] || context.dualJourney.type}` : '';
   const tempPart = context.tempC == null
-    ? (l === 'en' ? 'without confirmed temperature data' : l === 'ca' ? 'sense temperatura confirmada' : 'sin temperatura confirmada');
+    ? (l === 'en' ? 'without confirmed temperature data' : l === 'ca' ? 'sense temperatura confirmada' : 'sin temperatura confirmada')
+    : `${context.tempC}°C`;
   const occasionPart = `${OCCASION_LABELS[l][context.occasion] || context.occasion}${secondary}`;
   const intro = l === 'en'
     ? `Heuristic outfit for ${occasionPart}, ${tempPart}.`
