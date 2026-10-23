@@ -133,6 +133,22 @@
     }
     // ARACHNE_P2_FABRIC_END
 
+    // ARACHNE_P3_DETAIL_START
+    const DETAIL_COPY = {
+      es: {open:'Ver ficha de',missing:'Esta prenda ya no está en tu armario.'},
+      en: {open:'View details of',missing:'This garment is no longer in your wardrobe.'},
+      ca: {open:'Veure la fitxa de',missing:'Aquesta peça ja no és al teu armari.'}
+    };
+    function resolveGarmentDetail(wardrobe, garment) {
+      return garment?.id && Array.isArray(wardrobe) ? wardrobe.find(item => item.id === garment.id) || null : null;
+    }
+    function garmentDetailLabel(garment, lang = 'es') {
+      const t = DETAIL_COPY[lang] || DETAIL_COPY.es;
+      const name = typeof garment?.name === 'string' ? garment.name : garment?.name?.[lang] || garment?.name?.es || garment?.id || '';
+      return t.open + ' ' + name;
+    }
+    // ARACHNE_P3_DETAIL_END
+
 
     // =========================================================================
     // 1. SISTEMA DE ICONOGRAFÍA SVG EDITORIAL REDISEÑADO & ICONOS NATIVOS
@@ -1054,6 +1070,50 @@
       const [selectedGarmentModal, setSelectedGarmentModal] = useState(null);
       const [isEditingGarment, setIsEditingGarment] = useState(false);
       const [editedGarmentData, setEditedGarmentData] = useState(null);
+      // ARACHNE_P3_HANDLERS_START
+      const [garmentReadOnly, setGarmentReadOnly] = useState(false);
+      const garmentDialogRef = useRef(null);
+      const garmentTriggerRef = useRef(null);
+      const outfitGestureRef = useRef({startX:0,startY:0,moved:false});
+      const closeGarmentDetails = () => {
+        setSelectedGarmentModal(null);
+        setEditedGarmentData(null);
+        setIsEditingGarment(false);
+        setGarmentReadOnly(false);
+        const trigger = garmentTriggerRef.current;
+        garmentTriggerRef.current = null;
+        requestAnimationFrame(() => { if (trigger?.isConnected) trigger.focus({preventScroll:true}); });
+      };
+      const openGarmentDetails = (garment, readOnly = false, trigger = null) => {
+        if (isGenerating) return;
+        const item = resolveGarmentDetail(wardrobe, garment);
+        if (!item) { showToast((DETAIL_COPY[lang] || DETAIL_COPY.es).missing); return; }
+        garmentTriggerRef.current = trigger || document.activeElement;
+        setSelectedGarmentModal({...item});
+        setEditedGarmentData({...item});
+        setIsEditingGarment(false);
+        setGarmentReadOnly(readOnly);
+        setSwipeState({offsetX:0,isDragging:false,startX:0,startY:0,isHorizontal:null});
+      };
+      const handleOutfitGarmentClick = (garment, event) => {
+        event.stopPropagation();
+        if (event.detail !== 0 && outfitGestureRef.current.moved) { outfitGestureRef.current.moved = false; return; }
+        openGarmentDetails(garment, true, event.currentTarget);
+      };
+      const handleGarmentDetailKeyDown = event => {
+        if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeGarmentDetails(); return; }
+        if (event.key !== 'Tab') return;
+        const controls = [...event.currentTarget.querySelectorAll('button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex="0"]')];
+        const first = controls[0], last = controls[controls.length-1];
+        if (!first) { event.preventDefault(); return; }
+        if (event.shiftKey && (document.activeElement === first || document.activeElement === event.currentTarget)) { event.preventDefault(); last.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+      };
+      useEffect(() => {
+        if (selectedGarmentModal) garmentDialogRef.current?.querySelector('button')?.focus({preventScroll:true});
+      }, [selectedGarmentModal]);
+      // ARACHNE_P3_HANDLERS_END
+
 
       //      // Estados para "Añadir Esenciales" con botones interactivos y reinicio continuo
       const [showBasicsModal, setShowBasicsModal] = useState(false);
@@ -1264,6 +1324,8 @@
       // GESTIÓN TÁCTIL CON PRIORIZACIÓN DE SCROLL VERTICAL (ANTI-CONFLICTO)
       // -----------------------------------------------------------------------
       const handleTouchStart = (e) => {
+        const point = e.touches ? e.touches[0] : e;
+        outfitGestureRef.current = {startX:point.clientX,startY:point.clientY,moved:false};
         const clientX = e.touches ? e.touches[0].clientX : e.clientX;
         const clientY = e.touches ? e.touches[0].clientY : e.clientY;
         setSwipeState({
@@ -1276,6 +1338,9 @@
       };
 
       const handleTouchMove = (e) => {
+        const point = e.touches ? e.touches[0] : e;
+        const gesture = outfitGestureRef.current;
+        if (Math.hypot(point.clientX-gesture.startX, point.clientY-gesture.startY) > 8) gesture.moved = true;
         if (!swipeState.isDragging) return;
         const clientX = e.touches ? e.touches[0].clientX : e.clientX;
         const clientY = e.touches ? e.touches[0].clientY : e.clientY;
@@ -1495,7 +1560,7 @@
 
       // Guardar edición de prenda
       const handleSaveGarmentEdits = () => {
-        if (!editedGarmentData) return;
+        if (garmentReadOnly || !editedGarmentData) return;
         setWardrobe(prev => prev.map(item => item.id === editedGarmentData.id ? editedGarmentData : item));
         setSelectedGarmentModal(editedGarmentData);
         setIsEditingGarment(false);
@@ -1909,53 +1974,73 @@
                     {/* LIENZO ASIMÉTRICO FLAT-LAY 2D */}
                     <div className="py-3.5 space-y-2.5">
                       {currentOutfit.outerwear && (
-                        <div
+                        <button
+                          type="button"
+                          data-outfit-garment="outerwear"
+                          disabled={!currentOutfit.outerwear}
+                          aria-label={garmentDetailLabel(currentOutfit.outerwear, lang)}
+                          onClick={event => handleOutfitGarmentClick(currentOutfit.outerwear, event)}
 
-                          className="h-28 rounded-lg overflow-hidden bg-arachne-surface border border-arachne-border relative shadow-subtle group cursor-pointer"
+                          className="w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arachne-sage h-28 rounded-lg overflow-hidden bg-arachne-surface border border-arachne-border relative shadow-subtle group cursor-pointer"
                         >
-                          <img src={currentOutfit.outerwear.imageUrl} alt={currentOutfit.outerwear.name} className="w-full h-full object-cover" />
+                          <img draggable={false} src={currentOutfit.outerwear.imageUrl} alt={currentOutfit.outerwear.name} className="w-full h-full object-cover" />
                           <div className="absolute bottom-1.5 left-2 bg-black/65 backdrop-blur-xs text-white text-[10px] px-2 py-0.5 rounded flex items-center space-x-1.5">
                             <span className="font-semibold">{currentOutfit.outerwear.brand}</span>
                             <span>·</span>
                             <span className="truncate max-w-[140px]">{currentOutfit.outerwear.name}</span>
                           </div>
-                        </div>
+                        </button>
                       )}
 
                       <div className="grid grid-cols-2 gap-2.5">
-                        <div
+                        <button
+                          type="button"
+                          data-outfit-garment="top"
+                          disabled={!currentOutfit.top}
+                          aria-label={garmentDetailLabel(currentOutfit.top, lang)}
+                          onClick={event => handleOutfitGarmentClick(currentOutfit.top, event)}
 
-                          className="h-32 rounded-lg overflow-hidden bg-arachne-surface border border-arachne-border relative shadow-subtle cursor-pointer"
+                          className="w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arachne-sage h-32 rounded-lg overflow-hidden bg-arachne-surface border border-arachne-border relative shadow-subtle cursor-pointer"
                         >
-                          <img src={currentOutfit.top?.imageUrl} alt={currentOutfit.top?.name} className="w-full h-full object-cover" />
+                          <img draggable={false} src={currentOutfit.top?.imageUrl} alt={currentOutfit.top?.name} className="w-full h-full object-cover" />
                           <div className="absolute bottom-1.5 left-1.5 right-1.5 bg-black/65 text-white text-[9px] px-1.5 py-0.5 rounded truncate">
                             <strong>{currentOutfit.top?.brand}</strong> · {currentOutfit.top?.name}
                           </div>
-                        </div>
+                        </button>
 
-                        <div
+                        <button
+                          type="button"
+                          data-outfit-garment="bottom"
+                          disabled={!currentOutfit.bottom}
+                          aria-label={garmentDetailLabel(currentOutfit.bottom, lang)}
+                          onClick={event => handleOutfitGarmentClick(currentOutfit.bottom, event)}
 
-                          className="h-32 rounded-lg overflow-hidden bg-arachne-surface border border-arachne-border relative shadow-subtle cursor-pointer"
+                          className="w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arachne-sage h-32 rounded-lg overflow-hidden bg-arachne-surface border border-arachne-border relative shadow-subtle cursor-pointer"
                         >
-                          <img src={currentOutfit.bottom?.imageUrl} alt={currentOutfit.bottom?.name} className="w-full h-full object-cover" />
+                          <img draggable={false} src={currentOutfit.bottom?.imageUrl} alt={currentOutfit.bottom?.name} className="w-full h-full object-cover" />
                           <div className="absolute bottom-1.5 left-1.5 right-1.5 bg-black/65 text-white text-[9px] px-1.5 py-0.5 rounded truncate">
                             <strong>{currentOutfit.bottom?.brand}</strong> · {currentOutfit.bottom?.name}
                           </div>
-                        </div>
+                        </button>
                       </div>
 
                       <div className="grid grid-cols-2 gap-2.5">
-                        <div
+                        <button
+                          type="button"
+                          data-outfit-garment="footwear"
+                          disabled={!currentOutfit.footwear}
+                          aria-label={garmentDetailLabel(currentOutfit.footwear, lang)}
+                          onClick={event => handleOutfitGarmentClick(currentOutfit.footwear, event)}
 
-                          className="h-24 rounded-lg overflow-hidden bg-arachne-surface border border-arachne-border relative shadow-subtle cursor-pointer"
+                          className="w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arachne-sage h-24 rounded-lg overflow-hidden bg-arachne-surface border border-arachne-border relative shadow-subtle cursor-pointer"
                         >
-                          <img src={currentOutfit.footwear?.imageUrl} alt={currentOutfit.footwear?.name} className="w-full h-full object-cover" />
+                          <img draggable={false} src={currentOutfit.footwear?.imageUrl} alt={currentOutfit.footwear?.name} className="w-full h-full object-cover" />
                           <div className="absolute bottom-1.5 left-1.5 right-1.5 bg-black/65 text-white text-[9px] px-1.5 py-0.5 rounded truncate">
                             <strong>{currentOutfit.footwear?.brand}</strong> · {currentOutfit.footwear?.name}
                           </div>
-                        </div>
+                        </button>
 
-                        <div className="h-24 rounded-lg bg-arachne-surface border border-arachne-border p-2 flex flex-col justify-between shadow-subtle">
+                        <button type="button" data-outfit-garment="transition" disabled={!currentOutfit.transitionLayer?.item} aria-label={currentOutfit.transitionLayer?.item ? garmentDetailLabel(currentOutfit.transitionLayer.item, lang) : t.singleRoutineTag} onClick={event => handleOutfitGarmentClick(currentOutfit.transitionLayer?.item, event)} className="w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arachne-sage h-24 rounded-lg bg-arachne-surface border border-arachne-border p-2 flex flex-col justify-between shadow-subtle">
                           {currentOutfit.transitionLayer ? (
                             <>
                               <span className="text-[9px] font-bold uppercase text-arachne-terracotta leading-tight">
@@ -1971,7 +2056,7 @@
                               <span className="text-[10px] text-arachne-inkSubtle italic">{t.singleRoutineTag}</span>
                             </div>
                           )}
-                        </div>
+                        </button>
                       </div>
                     </div>
 
@@ -2063,7 +2148,7 @@
                 {inventoryReady ? React.createElement(window.__ARACHNE_INVENTORY_PANEL__, {
                   wardrobe, filteredGarments: filteredWardrobe, categoryKey: wardrobeFilter, lang,
                   onChange: setWardrobe,
-                  onOpen: (item) => { setSelectedGarmentModal(item); setEditedGarmentData({ ...item }); setIsEditingGarment(false); }
+                  onOpen: (item) => openGarmentDetails(item, false)
                 }) : <p role="status" className="text-xs">{lang === 'en' ? 'Loading wardrobe…' : lang === 'ca' ? 'Carregant l’armari…' : 'Cargando armario…'}</p>}
 
               </div>
@@ -2632,12 +2717,12 @@
           {/* =============================================================== */}
           {selectedGarmentModal && (
             <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-              <div className="bg-white w-full max-w-sm rounded-t-2xl sm:rounded-2xl overflow-y-auto shadow-floating border border-arachne-border p-5 space-y-3.5 animate-fadeInScale max-h-[85dvh]">
+              <div ref={garmentDialogRef} role="dialog" aria-modal="true" aria-label={t.garmentDetailTitle} data-read-only={garmentReadOnly} onKeyDown={handleGarmentDetailKeyDown} className="bg-white w-full max-w-sm rounded-t-2xl sm:rounded-2xl overflow-y-auto shadow-floating border border-arachne-border p-5 space-y-3.5 animate-fadeInScale max-h-[85dvh]">
                 <div className="flex items-center justify-between pb-2 border-b border-arachne-border">
                   <span className="text-[10px] font-mono font-bold uppercase text-arachne-terracotta">
-                    {isEditingGarment ? t.editGarmentTitle : t.garmentDetailTitle}
+                    {isEditingGarment && !garmentReadOnly ? t.editGarmentTitle : t.garmentDetailTitle}
                   </span>
-                  <button onClick={() => setSelectedGarmentModal(null)} className="text-zinc-400 hover:text-black">
+                  <button type="button" aria-label={t.closeBtn} onClick={closeGarmentDetails} className="text-zinc-400 hover:text-black">
                     <Icon name="close" className="w-4 h-4" />
                   </button>
                 </div>
@@ -2646,8 +2731,8 @@
                   <img src={selectedGarmentModal.imageUrl} alt={selectedGarmentModal.name} className="w-full h-full object-cover" />
                 </div>
 
-                {window.__ARACHNE_JOURNEY_RECORDS__ && React.createElement(window.__ARACHNE_JOURNEY_RECORDS__.ActivityFields, {lang,garment:isEditingGarment?editedGarmentData:(wardrobe.find(item=>item.id===selectedGarmentModal.id)||selectedGarmentModal),editing:isEditingGarment,onChange:activities=>setEditedGarmentData(previous=>({...previous,activities})),disabled:isGenerating})}
-{!isEditingGarment ? (
+                {window.__ARACHNE_JOURNEY_RECORDS__ && React.createElement(window.__ARACHNE_JOURNEY_RECORDS__.ActivityFields, {lang,garment:isEditingGarment?editedGarmentData:(wardrobe.find(item=>item.id===selectedGarmentModal.id)||selectedGarmentModal),editing:isEditingGarment && !garmentReadOnly,onChange:activities=>{if(!garmentReadOnly)setEditedGarmentData(previous=>({...previous,activities}));},disabled:isGenerating})}
+{!isEditingGarment || garmentReadOnly ? (
                   <>
                     <div>
                       <div className="flex items-center justify-between">
@@ -2673,9 +2758,10 @@
                       </div>
                     </div>
 
+{!garmentReadOnly && (
                     <div className="flex items-center space-x-2 pt-1">
                       <button
-                        onClick={() => setIsEditingGarment(true)}
+                        onClick={() => { if (!garmentReadOnly) setIsEditingGarment(true); }}
                         className="flex-1 py-2 rounded-lg bg-arachne-surface hover:bg-arachne-accentSand/40 text-arachne-ink text-xs font-semibold border border-arachne-border transition-colors flex items-center justify-center space-x-1.5"
                       >
                         <Icon name="edit" className="w-3.5 h-3.5" />
@@ -2684,6 +2770,7 @@
 
                       <button
                         onClick={(e) => {
+                          if (garmentReadOnly) return;
                           toggleAvailability(selectedGarmentModal.id, e);
                           setSelectedGarmentModal(prev => ({
                             ...prev,
@@ -2699,6 +2786,7 @@
                         {selectedGarmentModal.state === 'available' ? t.unavailableState : t.availableState}
                       </button>
                     </div>
+                    )}
                   </>
                 ) : (
                   <div className="space-y-2.5">
