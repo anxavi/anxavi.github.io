@@ -976,7 +976,10 @@
 
       // Configuración de la Lanzadera de Estilo ("Hoy")
       const [eventContext, setEventContext] = useState('office');
+      const [journeyExamples, setJourneyExamples] = useState([]);
+      const [journeyExampleOpen, setJourneyExampleOpen] = useState(null);
       const [journeyPreview, setJourneyPreview] = useState({enabled: false, type: "gym", showExample: false});
+      useEffect(() => { setJourneyExamples([]); setJourneyExampleOpen(null); }, [isAuthenticated]);
       const [dualJourney, setDualJourney] = useState(false);
       const [dualJourneyType, setDualJourneyType] = useState('dinner');
 
@@ -1685,7 +1688,14 @@
                   </div>
 
                   {/* Transición de Doble Jornada */}
-                  {window.__ARACHNE_JOURNEY_PANEL__ && React.createElement(window.__ARACHNE_JOURNEY_PANEL__, {lang, occasion: eventContext, activities: window.__ARACHNE_JOURNEY_ACTIVITIES__, value: journeyPreview, onChange: setJourneyPreview, onReview: () => setCurrentView("wardrobe"), disabled: isGenerating})}
+                  {window.__ARACHNE_JOURNEY_PANEL__ && React.createElement(window.__ARACHNE_JOURNEY_PANEL__, {lang, occasion: eventContext, activities: window.__ARACHNE_JOURNEY_ACTIVITIES__, value: journeyPreview, onChange: setJourneyPreview, onReview: () => setCurrentView("wardrobe"), disabled: isGenerating, onSave: () => {
+ if(isGenerating)return;
+ const api=window.__ARACHNE_JOURNEY_RECORDS__,input={occasion:eventContext,type:journeyPreview.type},now=new Date();
+ if(!api)return;
+ const result=api.saveExample([],input,now);if(!result.ok)return;
+ setJourneyExamples(previous=>api.saveExample(previous,input,now).items);
+ setJourneyExampleOpen(result.entry.id);setCurrentView('history');
+}})}
 
                   {/* BOTÓN DISPARADOR "DISEÑAR" */}
                                     {inventoryLoadError && <p role="alert" className="text-xs text-arachne-terracotta">{lang === 'en' ? 'Wardrobe tools could not load. Reload the page.' : lang === 'ca' ? 'No s’han pogut carregar les eines de l’armari. Recarrega la pàgina.' : 'No se pudieron cargar las herramientas del armario. Recarga la página.'}</p>}
@@ -2013,7 +2023,8 @@
                   <p className="text-xs text-arachne-inkMuted">{window.__ARACHNE_PRESENTATION__?.copy(lang).historySub || ""}</p>
                 </div>
 
-                {history.length === 0 ? (
+                {window.__ARACHNE_JOURNEY_RECORDS__ && React.createElement(window.__ARACHNE_JOURNEY_RECORDS__.JourneyExamples, {lang,items:journeyExamples,selectedId:journeyExampleOpen,onSelect:setJourneyExampleOpen,onToday:()=>setCurrentView('today'),onRemove:(id)=>{setJourneyExamples(previous=>window.__ARACHNE_JOURNEY_RECORDS__.removeExample(previous,id));if(journeyExampleOpen===id)setJourneyExampleOpen(null);},disabled:isGenerating})}
+{history.length === 0 && journeyExamples.length === 0 ? (
                   <div className="bg-white rounded-xl p-8 border border-dashed border-arachne-border text-center space-y-2">
                     <Icon name="bookmarkGuardados" className="w-8 h-8 text-arachne-inkMuted mx-auto" />
                     <h4 className="font-serif text-sm font-semibold text-arachne-ink">{t.savedEmptyTitle}</h4>
@@ -2566,7 +2577,7 @@
           {/* =============================================================== */}
           {selectedGarmentModal && (
             <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-              <div className="bg-white w-full max-w-sm rounded-t-2xl sm:rounded-2xl overflow-hidden shadow-floating border border-arachne-border p-5 space-y-3.5 animate-fadeInScale">
+              <div className="bg-white w-full max-w-sm rounded-t-2xl sm:rounded-2xl overflow-y-auto shadow-floating border border-arachne-border p-5 space-y-3.5 animate-fadeInScale max-h-[85dvh]">
                 <div className="flex items-center justify-between pb-2 border-b border-arachne-border">
                   <span className="text-[10px] font-mono font-bold uppercase text-arachne-terracotta">
                     {isEditingGarment ? t.editGarmentTitle : t.garmentDetailTitle}
@@ -2580,7 +2591,8 @@
                   <img src={selectedGarmentModal.imageUrl} alt={selectedGarmentModal.name} className="w-full h-full object-cover" />
                 </div>
 
-                {!isEditingGarment ? (
+                {window.__ARACHNE_JOURNEY_RECORDS__ && React.createElement(window.__ARACHNE_JOURNEY_RECORDS__.ActivityFields, {lang,garment:isEditingGarment?editedGarmentData:(wardrobe.find(item=>item.id===selectedGarmentModal.id)||selectedGarmentModal),editing:isEditingGarment,onChange:activities=>setEditedGarmentData(previous=>({...previous,activities})),disabled:isGenerating})}
+{!isEditingGarment ? (
                   <>
                     <div>
                       <div className="flex items-center justify-between">
