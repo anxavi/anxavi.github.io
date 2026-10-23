@@ -1067,7 +1067,26 @@
         breakdown: score?.factors || {}
       });
 
+      const [inventoryReady, setInventoryReady] = useState(false);
+      const [inventoryLoadError, setInventoryLoadError] = useState(false);
+      useEffect(() => {
+        let alive = true;
+        Promise.resolve(window.__ARACHNE_ENGINE_READY__).then(() => {
+          if (alive) setInventoryReady(Boolean(window.__ARACHNE_AVAILABILITY__ && window.__ARACHNE_INVENTORY_PANEL__));
+        }).catch(() => { if (alive) setInventoryLoadError(true); });
+        return () => { alive = false; };
+      }, []);
+      const missingCategoryGaps = inventoryReady ? window.__ARACHNE_AVAILABILITY__.categoryGaps(wardrobe) : [];
+      const unavailableCurrentIds = inventoryReady ? window.__ARACHNE_AVAILABILITY__.unavailableOutfitIds(currentOutfit, wardrobe) : [];
+
       const generatePrescription = async (extraIntent = null) => {
+        const gaps = window.__ARACHNE_AVAILABILITY__?.categoryGaps(wardrobe) || [];
+        if (gaps.length) {
+          cancelGeneration();
+          setGenerationError(window.__ARACHNE_AVAILABILITY__.missingMessage(wardrobe, lang));
+          setGenerationState('error');
+          return;
+        }
         setShowTweakDrawer(false);
         setGenerationError(null);
         setGenerationWarning(null);
@@ -1291,6 +1310,11 @@
 
       // Confirmar "Me lo puse hoy" con persistencia de prendas reales
       const handleConfirmWearToday = () => {
+        if (window.__ARACHNE_AVAILABILITY__?.unavailableOutfitIds(currentOutfit, wardrobe).length) {
+          showToast(window.__ARACHNE_AVAILABILITY__.copy(lang).stale);
+          return;
+        }
+
         if (!currentOutfit) return;
 
         const wornGarments = [
@@ -1774,9 +1798,17 @@
                   </div>
 
                   {/* BOTÓN DISPARADOR "DISEÑAR" */}
-                  <button
+                                    {inventoryLoadError && <p role="alert" className="text-xs text-arachne-terracotta">{lang === 'en' ? 'Wardrobe tools could not load. Reload the page.' : lang === 'ca' ? 'No s’han pogut carregar les eines de l’armari. Recarrega la pàgina.' : 'No se pudieron cargar las herramientas del armario. Recarga la página.'}</p>}
+                  {inventoryReady && missingCategoryGaps.length > 0 && (
+                    <div role="alert" className="p-3 rounded-xl bg-arachne-terracottaLight border border-arachne-border space-y-2">
+                      <p className="text-xs">{window.__ARACHNE_AVAILABILITY__.missingMessage(wardrobe, lang)}</p>
+                      <button type="button" className="text-xs underline" onClick={() => setCurrentView('wardrobe')}>{window.__ARACHNE_AVAILABILITY__.copy(lang).review}</button>
+                    </div>
+                  )}
+                  {inventoryReady && unavailableCurrentIds.length > 0 && <p role="status" className="p-3 text-xs bg-arachne-terracottaLight rounded-lg">{window.__ARACHNE_AVAILABILITY__.copy(lang).stale}</p>}
+<button
                     onClick={() => generatePrescription()}
-                    disabled={isGenerating}
+                    disabled={isGenerating || !inventoryReady || missingCategoryGaps.length > 0}
                     className="w-full bg-arachne-ink hover:bg-zinc-800 text-white text-xs font-semibold py-3.5 rounded-lg transition-all flex items-center justify-center space-x-2 shadow-subtle active:scale-[0.98]"
                   >
                     <Icon name="sparkles" className={`w-4 h-4 text-arachne-terracotta ${isGenerating ? 'animate-spin' : ''}`} />
@@ -2069,44 +2101,12 @@
                   ))}
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 pt-1">
-                  {filteredWardrobe.map(item => (
-                    <div
-                      key={item.id}
-                      onClick={() => {
-                        setSelectedGarmentModal(item);
-                        setEditedGarmentData({ ...item });
-                        setIsEditingGarment(false);
-                      }}
-                      className="bg-white rounded-xl overflow-hidden border border-arachne-border shadow-subtle hover:border-arachne-borderHover transition-all flex flex-col justify-between cursor-pointer group"
-                    >
-                      <div className="h-40 bg-arachne-surface relative overflow-hidden">
-                        <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                        
-                        <button
-                          onClick={(e) => toggleAvailability(item.id, e)}
-                          title={t.toggleAvailability}
-                          className={`absolute top-2 right-2 text-[9px] font-semibold px-2 py-0.5 rounded-full border backdrop-blur-md transition-colors ${
-                            item.state === 'available'
-                              ? 'bg-arachne-sageLight/90 border-arachne-sage/30 text-arachne-sage'
-                              : 'bg-zinc-800/80 border-white/20 text-white'
-                          }`}
-                        >
-                          {item.state === 'available' ? t.availableState : t.unavailableState}
-                        </button>
-                      </div>
+                {inventoryReady ? React.createElement(window.__ARACHNE_INVENTORY_PANEL__, {
+                  wardrobe, filteredGarments: filteredWardrobe, categoryKey: wardrobeFilter, lang,
+                  onChange: setWardrobe,
+                  onOpen: (item) => { setSelectedGarmentModal(item); setIsEditingGarment(false); }
+                }) : <p role="status" className="text-xs">{lang === 'en' ? 'Loading wardrobe…' : lang === 'ca' ? 'Carregant l’armari…' : 'Cargando armario…'}</p>}
 
-                      <div className="p-3">
-                        <div className="flex items-center justify-between text-[10px] text-arachne-inkMuted uppercase tracking-wider font-semibold">
-                          <span>{item.brand}</span>
-                          <span>{t.sizeLabel}. {item.size || "M"}</span>
-                        </div>
-                        <h4 className="font-serif text-xs font-bold text-arachne-ink truncate mt-0.5">{item.name}</h4>
-                        <span className="text-[10px] text-arachne-inkMuted block truncate">{item.fabric}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
               </div>
             )}
 
