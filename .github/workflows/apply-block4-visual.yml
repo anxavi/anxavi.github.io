@@ -1,0 +1,64 @@
+name: Apply block 4 visual journey preview
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/apply-block4-visual.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+  pages: write
+  actions: write
+concurrency:
+  group: arachne-block4-visual
+  cancel-in-progress: false
+jobs:
+  apply:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify Pages source
+        run: |
+          set -euo pipefail
+          test "$(gh api "repos/$GITHUB_REPOSITORY/pages" --jq '(.source.branch == "main") and (.source.path == "/") and (.build_type == "legacy")')" = true
+      - name: Prepare JSX parser for guarded patch
+        run: npm install --prefix "$RUNNER_TEMP/arachne-parser" --no-save --ignore-scripts --package-lock=false @babel/parser
+      - name: Apply visual-only patch
+        run: NODE_PATH="$RUNNER_TEMP/arachne-parser/node_modules" node tools/apply-block4-visual.cjs
+      - name: Verify modules and all blocks before committing
+        run: |
+          set -euo pipefail
+          for file in src/engine/*.js src/ui/*.js; do
+            node --input-type=module --check < "$file"
+          done
+          node --test test/*.test.mjs
+          git diff --check
+          test "$(git hash-object index.html)" = 2142d0bd6d20e2d50d4864eaf2d33560bb00cec9
+          for file in $(git diff --name-only); do
+            case "$file" in
+              index-preview.html|src/engine/browser.js|test/block1.test.mjs) ;;
+              *) echo "Unexpected change: $file"; exit 1 ;;
+            esac
+          done
+      - name: Commit visual integration only
+        run: |
+          set -euo pipefail
+          git add -- index-preview.html src/engine/browser.js test/block1.test.mjs
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Show interactive dual-journey skeleton without changing outfit intelligence'
+          git push origin HEAD:main
+      - name: Verify committed version and request Pages build
+        run: |
+          set -euo pipefail
+          gh api --method POST "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/dispatches" -f ref=main
+          gh api --method POST "repos/$GITHUB_REPOSITORY/pages/builds"
+          echo 'Visual journey integrated and tested. CI and Pages requested. Browser acceptance pending; example does not save garments or register wear.' >> "$GITHUB_STEP_SUMMARY"
