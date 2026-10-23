@@ -4,12 +4,12 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>ARACHNE — Armario Inteligente & Estilismo Prescriptivo</title>
-  
+
   <!-- Tipografía Editorial y de Sistema -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,400;1,600&display=swap" rel="stylesheet">
-  
+
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -889,7 +889,7 @@
     function ArachneApp() {
       // Estado de Autenticación
       const [isAuthenticated, setIsAuthenticated] = useState(false);
-      
+
       // Perfil de Usuario 100% editable
       const [currentUser, setCurrentUser] = useState({
         name: "Álex",
@@ -992,8 +992,8 @@
         startY: 0,
         isHorizontal: null
       });
-      const [showPieceEditorModal, setShowPieceEditorModal] = useState(false);
-      const [swappingCategory, setSwappingCategory] = useState(null);
+
+
       const [showTweakDrawer, setShowTweakDrawer] = useState(false);
 
       // Modales de Armario & Ficha
@@ -1053,7 +1053,7 @@
         setSwipeState({ offsetX: 0, isDragging: false, startX: 0, startY: 0, isHorizontal: null });
       };
 
-      const mapEngineOutfitToUI = (engineOutfit, score, editorial, transitionLayer, intentUsed) => ({
+      const mapEngineOutfitToUI = (engineOutfit, score, editorial, transitionLayer, intentUsed) => ({contextSnapshot: { occasion: eventContext, tempC: weather?.tempC, dualJourney: { enabled: dualJourney, type: dualJourneyType } },
         id: `outfit_${Date.now()}`,
         top: engineOutfit.top || null,
         bottom: engineOutfit.bottom || null,
@@ -1251,7 +1251,7 @@
         const threshold = 75;
         if (swipeState.offsetX > threshold) {
           setSwipeState({ offsetX: 0, isDragging: false, startX: 0, startY: 0, isHorizontal: null });
-          setShowPieceEditorModal(true);
+          handleSaveOutfit();
         } else if (swipeState.offsetX < -threshold) {
           setSwipeState({ offsetX: 0, isDragging: false, startX: 0, startY: 0, isHorizontal: null });
           setShowTweakDrawer(true);
@@ -1261,103 +1261,34 @@
       };
 
       // Sustituir prenda en el look con recalibración heurística determinista
-      const handleSwapGarment = (category, replacementGarment) => {
-        setCurrentOutfit(prev => {
-          if (!prev) return prev;
-          const updated = { ...prev, [category]: replacementGarment };
-          const scoreOutfit = window.__ARACHNE_SCORE_OUTFIT__;
-          const score = scoreOutfit
-            ? scoreOutfit(
-                {
-                  top: updated.top,
-                  bottom: updated.bottom,
-                  outerwear: updated.outerwear,
-                  footwear: updated.footwear
-                },
-                {
-                  occasion: eventContext,
-                  tempC: weather?.tempC,
-                  rainProb: weather?.rainProb,
-                  windKph: weather?.windKph ?? null,
-                  lang,
-                  intent: updated.lastIntent || 'default',
-                  dualJourney: { enabled: dualJourney, type: dualJourneyType },
-                  recentOutfitKeys: history.slice(0, 12).map(entry => [entry.top?.id, entry.bottom?.id, entry.outerwear?.id || 'none', entry.footwear?.id].join('|'))
-                }
-              )
-            : null;
 
-          const factorSummary = score
-            ? Object.entries(score.factors).map(([k, v]) => `${k}: ${v.reason}`).join(' | ')
-            : '';
-
-          const newEditorial = lang === 'es'
-            ? `Sustitución en ${category} con ${replacementGarment.name}. ${factorSummary}`
-            : (lang === 'en'
-              ? `Swap on ${category} with ${replacementGarment.name}. ${factorSummary}`
-              : `Substitució a ${category} amb ${replacementGarment.name}. ${factorSummary}`);
-
-          return {
-            ...updated,
-            editorial: newEditorial,
-            harmonyScore: score?.overall ?? updated.harmonyScore ?? 0,
-            scoreMeta: score || updated.scoreMeta,
-            breakdown: score?.factors || updated.breakdown
-          };
-        });
-        showToast(t.garmentUpdatedAlert);
-      };
 
       // Confirmar "Me lo puse hoy" con persistencia de prendas reales
-      const handleConfirmWearToday = () => {
-        if (window.__ARACHNE_AVAILABILITY__?.unavailableOutfitIds(currentOutfit, wardrobe).length) {
-          showToast(window.__ARACHNE_AVAILABILITY__.copy(lang).stale);
-          return;
-        }
-
-        if (!currentOutfit) return;
-
-        const wornGarments = [
-          currentOutfit.outerwear,
-          currentOutfit.top,
-          currentOutfit.bottom,
-          currentOutfit.footwear
-        ].filter(Boolean);
-
-        const outfitIds = wornGarments.map(g => g.id);
-
-        setWardrobe(prev => prev.map(item => {
-          if (outfitIds.includes(item.id)) {
-            return { ...item, timesWorn: item.timesWorn + 1 };
-          }
-          return item;
-        }));
-
-        const occasionMap = {
-          office: t.eventOffice,
-          casual: t.eventCasual,
-          dinner: t.eventDinner,
-          weekend: t.eventWeekend
-        };
-        const newEntry = {
-          id: "hist_" + Date.now(),
-          date: lang === 'es' ? "Hoy, confirmado" : (lang === 'en' ? "Today, confirmed" : "Avui, confirmat"),
-          occasion: occasionMap[eventContext] || eventContext,
-          tags: [eventContext, ...(dualJourney ? [dualJourneyType] : [])],
-          garments: wornGarments,
-          top: currentOutfit.top || null,
-          bottom: currentOutfit.bottom || null,
-          outerwear: currentOutfit.outerwear || null,
-          footwear: currentOutfit.footwear || null,
-          garmentNames: wornGarments.map(g => g.name),
-          editorial: currentOutfit.editorial,
-          harmonyScore: currentOutfit.harmonyScore ?? 0,
-          breakdown: currentOutfit.breakdown || {}
-        };
-
-        setHistory(prev => [newEntry, ...prev]);
-        setShowPieceEditorModal(false);
-        showToast(lang === 'es' ? "Look registrado en Guardados" : (lang === 'en' ? "Look recorded in Saved" : "Look registrat a Guardats"));
+      const savedActionRef = useRef(false);
+      const handleSaveOutfit = () => {
+        const p = window.__ARACHNE_PRESENTATION__;
+        if (!p || !currentOutfit || isGenerating || savedActionRef.current) return;
+        const context = { occasion: eventContext, tempC: weather?.tempC, dualJourney: { enabled: dualJourney, type: dualJourneyType } };
+        const result = p.saveLook(history, currentOutfit, wardrobe, context);
+        if (!result.ok) { showToast(p.copy(lang).unavailable); return; }
+        savedActionRef.current = true;
+        setHistory(previous => p.saveLook(previous, currentOutfit, wardrobe, context).history);
+        resetInteractionState();
+        showToast(p.copy(lang).savedToast);
+        queueMicrotask(() => { savedActionRef.current = false; });
+      };
+      const handleMarkSavedWorn = (id) => {
+        const p = window.__ARACHNE_PRESENTATION__;
+        if (!p || savedActionRef.current) return;
+        const result = p.markWorn(history, wardrobe, id);
+        if (!result.ok) { showToast(p.copy(lang).unavailable); return; }
+        if (result.duplicate) return;
+        savedActionRef.current = true;
+        setHistory(result.history);
+        setWardrobe(result.wardrobe);
+        if (inspectedLook?.id === id) setInspectedLook(result.history.find(look => look.id === id));
+        showToast(p.copy(lang).wornToast);
+        queueMicrotask(() => { savedActionRef.current = false; });
       };
 
       //      // Ingesta de fotos con compresión WebP
@@ -1652,7 +1583,7 @@
       // =========================================================================
       return (
         <div className="min-h-screen flex flex-col justify-between max-w-md mx-auto bg-arachne-canvas border-x border-arachne-border relative font-sans shadow-subtle">
-          
+
           {toast && (
             <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-11/12 max-w-sm bg-arachne-ink text-white text-xs px-4 py-3 rounded-lg shadow-floating flex items-center justify-between animate-fadeInScale">
               <span className="font-medium tracking-wide">{toast}</span>
@@ -1701,7 +1632,7 @@
             {/* VISTA 1: HOY */}
             {currentView === 'today' && (
               <div className="space-y-4 animate-slideUp">
-                
+
                 {/* WIDGET METEOROLÓGICO */}
                 <div className="bg-white rounded-xl p-3.5 border border-arachne-border shadow-subtle flex items-center justify-between">
                   <div className="flex items-center space-x-3">
@@ -1922,7 +1853,7 @@
                   >
                     {swipeState.offsetX > 25 && (
                       <div className="absolute top-4 left-4 z-30 bg-arachne-sage text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-subtle uppercase tracking-wider animate-fadeInScale">
-                        ✓ {t.swipeRightLabel}
+                        ✓ {window.__ARACHNE_PRESENTATION__?.copy(lang).save || ""}
                       </div>
                     )}
                     {swipeState.offsetX < -25 && (
@@ -1936,7 +1867,7 @@
                         <span className="text-[10px] font-bold uppercase tracking-wider text-arachne-terracotta">{t.outfitTodayHeading}</span>
                         <h3 className="font-serif text-sm font-semibold text-arachne-ink">{t.calibratedProposalTitle}</h3>
                       </div>
-                      
+
                       {/* BOTÓN INTERACTIVO DE ARMONÍA ESTÉTICA */}
                       <button
                         onClick={(e) => {
@@ -1955,7 +1886,7 @@
                     <div className="py-3.5 space-y-2.5">
                       {currentOutfit.outerwear && (
                         <div
-                          onClick={() => { setSwappingCategory('outerwear'); setShowPieceEditorModal(true); }}
+
                           className="h-28 rounded-lg overflow-hidden bg-arachne-surface border border-arachne-border relative shadow-subtle group cursor-pointer"
                         >
                           <img src={currentOutfit.outerwear.imageUrl} alt={currentOutfit.outerwear.name} className="w-full h-full object-cover" />
@@ -1969,7 +1900,7 @@
 
                       <div className="grid grid-cols-2 gap-2.5">
                         <div
-                          onClick={() => { setSwappingCategory('top'); setShowPieceEditorModal(true); }}
+
                           className="h-32 rounded-lg overflow-hidden bg-arachne-surface border border-arachne-border relative shadow-subtle cursor-pointer"
                         >
                           <img src={currentOutfit.top?.imageUrl} alt={currentOutfit.top?.name} className="w-full h-full object-cover" />
@@ -1979,7 +1910,7 @@
                         </div>
 
                         <div
-                          onClick={() => { setSwappingCategory('bottom'); setShowPieceEditorModal(true); }}
+
                           className="h-32 rounded-lg overflow-hidden bg-arachne-surface border border-arachne-border relative shadow-subtle cursor-pointer"
                         >
                           <img src={currentOutfit.bottom?.imageUrl} alt={currentOutfit.bottom?.name} className="w-full h-full object-cover" />
@@ -1991,7 +1922,7 @@
 
                       <div className="grid grid-cols-2 gap-2.5">
                         <div
-                          onClick={() => { setSwappingCategory('footwear'); setShowPieceEditorModal(true); }}
+
                           className="h-24 rounded-lg overflow-hidden bg-arachne-surface border border-arachne-border relative shadow-subtle cursor-pointer"
                         >
                           <img src={currentOutfit.footwear?.imageUrl} alt={currentOutfit.footwear?.name} className="w-full h-full object-cover" />
@@ -2026,7 +1957,7 @@
                         {t.editorialHeading}
                       </span>
                       <p className="font-serif italic text-xs leading-relaxed text-arachne-ink">
-                        "{currentOutfit.editorial}"
+                        "{window.__ARACHNE_PRESENTATION__?.describe(currentOutfit, lang) || ""}"
                       </p>
                     </div>
 
@@ -2040,13 +1971,7 @@
                         <span>{t.swipeLeftLabel}</span>
                       </button>
 
-                      <button
-                        onClick={() => setShowPieceEditorModal(true)}
-                        className="flex-1 py-2.5 px-3 rounded-lg bg-arachne-ink hover:bg-zinc-800 text-white text-xs font-semibold flex items-center justify-center space-x-1.5 transition-all shadow-subtle active:scale-[0.98]"
-                      >
-                        <Icon name="check" className="w-3.5 h-3.5 text-arachne-sageLight" />
-                        <span>{t.swipeRightLabel}</span>
-                      </button>
+
                     </div>
                   </div>
                 )}
@@ -2054,6 +1979,16 @@
             )}
 
             {/* */}
+{currentView === 'today' && currentOutfit && !isGenerating && inventoryReady && (
+              <div className="space-y-2 pb-3">
+                <button type="button" onClick={handleSaveOutfit}
+                  disabled={window.__ARACHNE_PRESENTATION__?.saved(history, currentOutfit) || unavailableCurrentIds.length > 0}
+                  className="w-full bg-arachne-ink text-white py-3 rounded-xl text-sm font-semibold disabled:opacity-50">
+                  {window.__ARACHNE_PRESENTATION__?.saved(history, currentOutfit) ? window.__ARACHNE_PRESENTATION__?.copy(lang).saved : window.__ARACHNE_PRESENTATION__?.copy(lang).save}
+                </button>
+              </div>
+            )}
+
             {/* VISTA 2: ARMARIO DIGITAL */}
             {currentView === 'wardrobe' && (
               <div className="space-y-4 animate-slideUp">
@@ -2062,7 +1997,7 @@
                     <h2 className="font-serif text-xl font-bold text-arachne-ink">{t.wardrobeTitle}</h2>
                     <p className="text-xs text-arachne-inkMuted">{wardrobe.length} {t.wardrobeSub}</p>
                   </div>
-                  
+
                   {/* BOTÓN DESTACADO "AÑADIR ESENCIALES" CON ICONO "+" LATERAL */}
                   <button
                     onClick={() => {
@@ -2104,7 +2039,7 @@
                 {inventoryReady ? React.createElement(window.__ARACHNE_INVENTORY_PANEL__, {
                   wardrobe, filteredGarments: filteredWardrobe, categoryKey: wardrobeFilter, lang,
                   onChange: setWardrobe,
-                  onOpen: (item) => { setSelectedGarmentModal(item); setIsEditingGarment(false); }
+                  onOpen: (item) => { setSelectedGarmentModal(item); setEditedGarmentData({ ...item }); setIsEditingGarment(false); }
                 }) : <p role="status" className="text-xs">{lang === 'en' ? 'Loading wardrobe…' : lang === 'ca' ? 'Carregant l’armari…' : 'Cargando armario…'}</p>}
 
               </div>
@@ -2116,14 +2051,14 @@
               <div className="space-y-4 animate-slideUp">
                 <div>
                   <h2 className="font-serif text-xl font-bold text-arachne-ink">{t.historyTitle}</h2>
-                  <p className="text-xs text-arachne-inkMuted">{t.historySub}</p>
+                  <p className="text-xs text-arachne-inkMuted">{window.__ARACHNE_PRESENTATION__?.copy(lang).historySub || ""}</p>
                 </div>
 
                 {history.length === 0 ? (
                   <div className="bg-white rounded-xl p-8 border border-dashed border-arachne-border text-center space-y-2">
                     <Icon name="bookmarkGuardados" className="w-8 h-8 text-arachne-inkMuted mx-auto" />
                     <h4 className="font-serif text-sm font-semibold text-arachne-ink">{t.savedEmptyTitle}</h4>
-                    <p className="text-xs text-arachne-inkMuted">{t.savedEmptySub}</p>
+                    <p className="text-xs text-arachne-inkMuted">{window.__ARACHNE_PRESENTATION__?.copy(lang).empty || ""}</p>
                   </div>
                 ) : (
                   <div className="space-y-3.5">
@@ -2135,9 +2070,9 @@
                       >
                         <div className="flex items-center justify-between text-[10px] font-mono">
                           <span className="px-2.5 py-0.5 rounded-full bg-arachne-surface font-semibold text-arachne-ink border border-arachne-border">
-                            {look.occasion}
+                            {window.__ARACHNE_PRESENTATION__?.occasionLabel(look, lang) || ""}
                           </span>
-                          <span className="text-arachne-inkMuted">{look.date}</span>
+                          <span className="text-arachne-inkMuted">{window.__ARACHNE_PRESENTATION__?.dateLabel(look, lang) || ""}</span>
                         </div>
 
                         {/* MINIATURAS VISUALES CON IMÁGENES REALES */}
@@ -2157,7 +2092,7 @@
 
                         <div className="flex items-center justify-between">
                           <p className="font-serif italic text-xs text-arachne-ink line-clamp-1 flex-1 pr-2">
-                            "{look.editorial}"
+                            "{window.__ARACHNE_PRESENTATION__?.describe(look, lang) || ""}"
                           </p>
                           <span className="text-[10px] font-mono font-bold bg-arachne-surface text-arachne-terracotta px-2 py-0.5 rounded border border-arachne-border">
                             {look.harmonyScore ?? 0}/100
@@ -2189,7 +2124,7 @@
                     <h2 className="font-serif text-xl font-bold text-arachne-ink">{t.profileTitle}</h2>
                     <p className="text-xs text-arachne-inkMuted">{t.profileSub}</p>
                   </div>
-                  
+
                   {!isEditingProfile ? (
                     <button
                       onClick={() => {
@@ -2217,7 +2152,7 @@
                   </div>
                   <div className="bg-white p-3 rounded-xl border border-arachne-border text-center shadow-subtle">
                     <span className="text-[10px] uppercase font-bold text-arachne-inkMuted block">{t.confirmedOutfitsMetric}</span>
-                    <span className="font-serif text-xl font-bold text-arachne-sage">{history.length}</span>
+                    <span className="font-serif text-xl font-bold text-arachne-sage">{window.__ARACHNE_PRESENTATION__?.wearCount(history) ?? 0}</span>
                   </div>
                   <div className="bg-white p-3 rounded-xl border border-arachne-border text-center shadow-subtle">
                     <span className="text-[10px] uppercase font-bold text-arachne-inkMuted block">{t.closetPiecesMetric}</span>
@@ -2370,7 +2305,7 @@
           {showBasicsModal && (
             <div className="fixed inset-0 bg-black/45 backdrop-blur-xs z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fadeInScale">
               <div className="bg-white w-full max-w-sm rounded-t-2xl sm:rounded-2xl overflow-hidden shadow-floating border border-arachne-border p-5 space-y-3.5 max-h-[88vh] flex flex-col">
-                
+
                 {/* Cabecera del Modal con paso actual */}
                 <div className="flex items-center justify-between pb-2.5 border-b border-arachne-border">
                   <div className="flex items-center space-x-2">
@@ -2455,7 +2390,7 @@
                 {/* PASO 2: FORMULARIO DE CATEGORIZACIÓN & REINICIO AL GUARDAR */}
                 {essentialFlowStep === 'customize' && customizingEssential && (
                   <div className="flex-1 overflow-y-auto space-y-3 pr-1 py-1">
-                    
+
                     {/* Tarjeta Visual de Previsualización */}
                     <div className="h-28 rounded-xl overflow-hidden bg-arachne-surface border border-arachne-border relative shadow-subtle">
                       <img src={customizingEssential.imageUrl} alt="Preview" className="w-full h-full object-cover" />
@@ -2634,7 +2569,7 @@
               <div className="bg-white w-full max-w-sm rounded-t-2xl sm:rounded-2xl overflow-hidden shadow-floating border border-arachne-border p-5 space-y-4">
                 <div className="flex items-center justify-between pb-2 border-b border-arachne-border">
                   <div>
-                    <span className="text-[10px] font-bold uppercase text-arachne-terracotta">{t.harmonyOptimal}</span>
+                    <span className="text-[10px] font-bold uppercase text-arachne-terracotta">{window.__ARACHNE_PRESENTATION__?.copy(lang).overview || ""}</span>
                     <h3 className="font-serif text-base font-bold text-arachne-ink">{t.harmonyModalTitle}</h3>
                   </div>
                   <button onClick={() => setShowHarmonyModal(false)} className="text-zinc-400 hover:text-black">
@@ -2642,31 +2577,17 @@
                   </button>
                 </div>
 
-                <p className="text-xs text-arachne-inkMuted leading-relaxed">{t.harmonyModalSub}</p>
+                <p className="text-xs text-arachne-inkMuted leading-relaxed">{window.__ARACHNE_PRESENTATION__?.copy(lang).sub || ""}</p>
 
                 <div className="space-y-3 pt-1">
-                  {Object.entries(currentOutfit?.breakdown || {}).map(([factorKey, factorData]) => {
-                    const factorScore = Math.round((factorData?.score || 0) * 100);
-                    return (
-                      <div key={factorKey} className="space-y-1">
-                        <div className="flex justify-between text-xs">
-                          <span className="text-arachne-ink font-medium">{factorKey}</span>
-                          <span className="font-mono font-bold text-arachne-terracotta">{factorScore}/100</span>
-                        </div>
-                        <div className="w-full h-1.5 bg-arachne-surface rounded-full overflow-hidden">
-                          <div className="h-full bg-arachne-terracotta rounded-full" style={{ width: `${factorScore}%` }} />
-                        </div>
-                        {factorData?.reason && (
-                          <p className="text-[10px] text-arachne-inkMuted">{factorData.reason}</p>
-                        )}
-                      </div>
-                    );
-                  })}
-                  {currentOutfit?.scoreMeta?.limitations?.length > 0 && (
-                    <p className="text-[10px] text-arachne-inkMuted">
-                      Limitaciones: {currentOutfit.scoreMeta.limitations.join(', ')}
-                    </p>
-                  )}
+                  {(window.__ARACHNE_PRESENTATION__?.factorList(currentOutfit?.breakdown || {}, lang) || []).map(factor => (
+                    <div key={factor.key} className="space-y-1">
+                      <div className="flex justify-between text-xs"><span>{factor.label}</span><span>{factor.score == null ? '—' : factor.score + '/100'}</span></div>
+                      {factor.score != null && <div className="h-1.5 bg-arachne-surface rounded-full"><div className="h-full bg-arachne-terracotta rounded-full" style={{width: factor.score + '%'}} /></div>}
+                      <p className="text-[10px] text-arachne-inkMuted">{factor.reason}</p>
+                    </div>
+                  ))}
+                  {window.__ARACHNE_PRESENTATION__?.limitationText(currentOutfit?.scoreMeta, lang) && <p className="text-[10px] text-arachne-inkMuted">{window.__ARACHNE_PRESENTATION__?.limitationText(currentOutfit?.scoreMeta, lang)}</p>}
                 </div>
 
                 <div className="pt-2 border-t border-arachne-border">
@@ -2817,68 +2738,7 @@
           {/* =============================================================== */}
           {/* MODAL: SUSTITUIR PIEZAS DEL OUTFIT                              */}
           {/* =============================================================== */}
-          {showPieceEditorModal && currentOutfit && (
-            <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-              <div className="bg-white w-full max-w-sm rounded-t-2xl sm:rounded-2xl overflow-hidden shadow-floating border border-arachne-border p-5 space-y-3.5 animate-fadeInScale max-h-[85vh] flex flex-col">
-                <div className="flex items-center justify-between pb-2 border-b border-arachne-border">
-                  <div>
-                    <span className="text-[10px] font-bold uppercase text-arachne-sage">{t.selectedLookHeading}</span>
-                    <h3 className="font-serif text-sm font-bold text-arachne-ink">{t.editOutfitBtn}</h3>
-                  </div>
-                  <button onClick={() => setShowPieceEditorModal(false)} className="text-zinc-400 hover:text-black">
-                    <Icon name="close" className="w-4 h-4" />
-                  </button>
-                </div>
 
-                <div className="flex-1 overflow-y-auto space-y-3 pr-1">
-                  {['outerwear', 'top', 'bottom', 'footwear'].map(cat => {
-                    const item = currentOutfit[cat];
-                    const availableReplacements = wardrobe.filter(w => w.category === cat && w.state === 'available' && w.id !== item?.id);
-
-                    return (
-                      <div key={cat} className="p-2.5 rounded-lg border border-arachne-border bg-arachne-surface/30 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-bold uppercase text-arachne-inkMuted">{cat}</span>
-                          <span className="text-xs font-semibold text-arachne-ink truncate max-w-[170px]">
-                            {item ? `${item.brand} · ${item.name}` : "Ninguno"}
-                          </span>
-                        </div>
-
-                        {availableReplacements.length > 0 && (
-                          <div className="flex space-x-1.5 overflow-x-auto no-scrollbar pt-1">
-                            {availableReplacements.slice(0, 3).map(rep => (
-                              <button
-                                key={rep.id}
-                                onClick={() => handleSwapGarment(cat, rep)}
-                                className="text-[10px] py-1 px-2 rounded border border-arachne-border bg-white hover:border-arachne-ink text-left truncate max-w-[130px]"
-                              >
-                                {rep.brand} · {rep.name}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <div className="pt-2 border-t border-arachne-border flex space-x-2">
-                  <button
-                    onClick={() => setShowPieceEditorModal(false)}
-                    className="flex-1 py-2.5 text-xs font-semibold rounded-lg border border-arachne-border text-arachne-ink"
-                  >
-                    {t.closeBtn}
-                  </button>
-                  <button
-                    onClick={handleConfirmWearToday}
-                    className="flex-1 py-2.5 text-xs font-semibold rounded-lg bg-arachne-ink text-white"
-                  >
-                    {t.wearConfirmedBtn}
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* */}
           {/* =============================================================== */}
@@ -2887,7 +2747,7 @@
           {inspectedLook && (
             <div className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fadeInScale">
               <div className="bg-white w-full max-w-sm rounded-t-2xl sm:rounded-2xl overflow-hidden shadow-floating border border-arachne-border p-5 space-y-4 max-h-[90vh] flex flex-col">
-                
+
                 <div className="flex items-center justify-between pb-2 border-b border-arachne-border">
                   <div>
                     <span className="text-[10px] font-mono font-bold uppercase text-arachne-terracotta">{inspectedLook.date}</span>
@@ -2900,7 +2760,7 @@
 
                 <div className="flex items-center justify-between">
                   <span className="text-xs px-2.5 py-1 rounded-full bg-arachne-surface font-semibold text-arachne-ink border border-arachne-border">
-                    {inspectedLook.occasion}
+                    {window.__ARACHNE_PRESENTATION__?.occasionLabel(inspectedLook, lang) || ""}
                   </span>
                   <span className="text-xs font-mono font-bold text-arachne-terracotta bg-arachne-surface px-2.5 py-1 rounded-full border border-arachne-border">
                     {t.harmonyScoreLabel}: {inspectedLook.harmonyScore ?? 0}/100
@@ -2912,7 +2772,7 @@
                   <span className="text-[10px] font-bold uppercase tracking-wider text-arachne-inkMuted block">
                     {t.inspectPiecesHeading}
                   </span>
-                  
+
                   <div className="grid grid-cols-2 gap-2">
                     {inspectedLook.garments && inspectedLook.garments.length > 0 ? (
                       inspectedLook.garments.map((g, idx) => (
@@ -2932,7 +2792,7 @@
                 </div>
 
                 <p className="font-serif italic text-xs leading-relaxed text-arachne-ink border-l-2 border-arachne-terracotta/50 pl-2.5 bg-arachne-canvas p-2 rounded">
-                  "{inspectedLook.editorial}"
+                  "{window.__ARACHNE_PRESENTATION__?.describe(inspectedLook, lang) || ""}"
                 </p>
 
                 <div className="space-y-2 pt-1">
@@ -2971,7 +2831,11 @@
                   </button>
                 </div>
 
-              </div>
+              <button type="button" onClick={() => handleMarkSavedWorn(inspectedLook.id)}
+                  disabled={window.__ARACHNE_PRESENTATION__?.wornToday(inspectedLook) || !window.__ARACHNE_PRESENTATION__?.canUse(inspectedLook, wardrobe)}
+                  className="w-full bg-arachne-ink text-white py-3 rounded-xl text-xs font-semibold disabled:opacity-50">
+                  {window.__ARACHNE_PRESENTATION__?.wornToday(inspectedLook) ? window.__ARACHNE_PRESENTATION__?.copy(lang).worn : window.__ARACHNE_PRESENTATION__?.copy(lang).wear}
+                </button></div>
             </div>
           )}
 
@@ -3121,7 +2985,7 @@
           {/* */}
           {/* BARRA DE NAVEGACIÓN INFERIOR ELEVADA */}
           <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white/95 backdrop-blur-md border-t border-arachne-border z-40 px-4 py-2 flex items-center justify-between">
-            
+
             {/* HOY (#svg-inicio-b) */}
             <button
               onClick={() => setCurrentView('today')}
