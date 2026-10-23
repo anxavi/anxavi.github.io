@@ -1,10 +1,12 @@
 import {ACTIVITIES,normalizeActivities} from '../engine/journey.js';
+import {buildVisualJourney,VisualJourney} from './journey-outfits.js';
 const OCCASIONS=['office','casual','dinner','weekend'];
 export function saveExample(items,input,now=new Date()){
  if(!Array.isArray(items)||items.some(item=>item.kind!=='journey-demo')||!OCCASIONS.includes(input?.occasion)||!ACTIVITIES.some(a=>a.id===input?.type)||!(now instanceof Date)||!Number.isFinite(now.getTime()))return{ok:false,items};
  const id='journey-demo:'+input.occasion+':'+input.type,existing=items.find(item=>item.id===id);
  if(existing)return{ok:true,items,entry:existing,duplicate:true};
- const entry={id,kind:'journey-demo',occasion:input.occasion,activityId:input.type,savedAt:now.toISOString()};
+ const plan=buildVisualJourney({occasion:input.occasion,activityId:input.type});if(!plan)return{ok:false,items};
+ const entry={id,kind:'journey-demo',occasion:input.occasion,activityId:input.type,savedAt:now.toISOString(),plan};
  return{ok:true,items:[entry,...items],entry};
 }
 export const removeExample=(items,id)=>items.filter(item=>item.kind!=='journey-demo'||item.id!==id);
@@ -25,8 +27,7 @@ export function JourneyExamples({lang='es',items=[],selectedId=null,onSelect=()=
    h('div',{className:'flex flex-wrap gap-2'},h('button',{type:'button','data-open-example':item.id,disabled,'aria-expanded':selectedId===item.id,onClick:()=>{if(!disabled)onSelect(item.id);},className:button},t.open),h('button',{type:'button','data-remove-example':item.id,disabled,onClick:()=>{if(!disabled)onRemove(item.id);},className:button},t.remove))
   ))):h('p',{className:'text-xs'},t.empty),
   selected?h('article',{'data-example-detail':selected.id,className:'rounded-xl border border-arachne-border bg-white p-3 space-y-2'},
-   h('h4',{className:'text-xs font-semibold'},t.detail),h('p',{className:'text-xs'},t.first+': '+t.occasions[selected.occasion]),h('p',{className:'text-xs'},t.second+': '+label(selected.activityId,lang)),
-   h('p',{className:'text-xs font-semibold'},t.pieces),h('div',{className:'grid grid-cols-3 gap-2'},...t.categories.map(name=>h('div',{key:name,className:'bg-arachne-surface p-3 rounded-lg text-[10px] text-center'},name))),
+   h('h4',{className:'text-xs font-semibold'},t.detail),h(VisualJourney,{lang,occasion:selected.occasion,activityId:selected.activityId,plan:selected.plan||null}),
    h('button',{type:'button','data-close-example':'true',disabled,onClick:()=>{if(!disabled)onSelect(null);},className:button},t.close)
   ):null,
   h('button',{type:'button','data-example-today':'true',disabled,onClick:()=>{if(!disabled)onToday();},className:button},t.today)
