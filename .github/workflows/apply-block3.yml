@@ -1,0 +1,56 @@
+name: Integrate and test ARACHNE block 3
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/apply-block3.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+  pages: write
+concurrency:
+  group: arachne-block3
+  cancel-in-progress: false
+jobs:
+  apply:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Verify Pages source
+        run: |
+          set -euo pipefail
+          test "$(gh api "repos/$GITHUB_REPOSITORY/pages" --jq '(.source.branch == "main") and (.source.path == "/") and (.build_type == "legacy")')" = true
+      - name: Test presentation module before integration
+        run: node --test test/block3.test.mjs
+      - name: Prepare JSX parser
+        run: npm install --prefix "$RUNNER_TEMP/arachne-parser" --no-save --ignore-scripts --package-lock=false @babel/parser
+      - name: Apply guarded block 3 AST patch
+        run: NODE_PATH="$RUNNER_TEMP/arachne-parser/node_modules" node tools/apply-block3.cjs
+      - name: Test all three blocks
+        run: |
+          set -euo pipefail
+          node --check src/engine/presentation.js
+          node --check src/engine/browser.js
+          node --test test/block1.test.mjs test/block2.test.mjs test/block3.test.mjs
+          git diff --check
+          test "$(git hash-object index.html)" = 2142d0bd6d20e2d50d4864eaf2d33560bb00cec9
+      - name: Commit preview changes only
+        run: |
+          set -euo pipefail
+          git add -- index-preview.html src/engine/browser.js
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Localize harmony and simplify preview outfit saving without manual editing'
+          git push origin HEAD:main
+      - name: Request Pages build
+        run: |
+          gh api --method POST "repos/$GITHUB_REPOSITORY/pages/builds"
+          echo 'Block 3 checks passed; preview changes committed; Pages build requested. Browser review pending.' >> "$GITHUB_STEP_SUMMARY"
