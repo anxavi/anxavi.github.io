@@ -1,0 +1,143 @@
+name: Apply guarded P2 fabric translations
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/apply-p2-fabric.yml']
+permissions:
+  contents: write
+  actions: write
+  pages: write
+concurrency:
+  group: arachne-apply-p2-fabric
+  cancel-in-progress: false
+jobs:
+  apply:
+    if: github.repository == 'anxavi/anxavi.github.io' && github.event.head_commit.message == 'Prepare guarded P2 fabric translation application'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify exact approved base
+        env:
+          EXPECTED_HEAD: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test "$(git rev-parse HEAD^)" = 0a35aa4f7bb75f55ed4feb6295d239677a35a3dc
+          test "$(git diff-tree --no-commit-id --name-only -r HEAD)" = .github/workflows/apply-p2-fabric.yml
+      - name: Apply only the approved P2 replacements
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import base64, gzip, hashlib, json, re
+          def blob(data):
+              return hashlib.sha1(b'blob '+str(len(data)).encode()+b'\0'+data).hexdigest()
+          original = Path('index-preview.html').read_bytes()
+          assert blob(original) == 'dcd943fc2a4c5914c5541355a3c523a0da34c618', 'Preview changed'
+          assert blob(Path('index.html').read_bytes()) == '2142d0bd6d20e2d50d4864eaf2d33560bb00cec9', 'Original changed'
+          assert not Path('test/p2-fabric.test.mjs').exists(), 'Test already exists'
+          text = original.decode('utf-8')
+          rows = [
+              ['combed_cotton','100% Algodón peinado','100% Combed cotton','100% Cotó pentinat'],
+              ['cotton_poplin','Algodón popelín hilado','Woven cotton poplin','Popelín de cotó filat'],
+              ['stretch_twill','Sarga de algodón elástica','Stretch cotton twill','Sarja de cotó elàstica'],
+              ['rigid_denim','Denim 100% algodón rígido','Rigid 100% cotton denim','Denim 100% cotó rígid'],
+              ['tailoring_wool','Lana fría de sastrería','Tailoring tropical wool','Llana freda de sastreria'],
+              ['dense_canvas','Algodón canvas denso','Dense cotton canvas','Lona de cotó densa'],
+              ['vegetable_leather','Piel de curtición vegetal','Vegetable-tanned leather','Pell d’adobament vegetal'],
+              ['waxed_leather','Cuero curtido encerado','Waxed tanned leather','Cuir adobat encerat'],
+              ['canvas_leather','Lona hidrófuga y cuero','Water-repellent canvas and leather','Lona hidròfuga i cuir'],
+              ['structured_wool','100% Lana fría estructurada','100% Structured tropical wool','100% Llana freda estructurada'],
+              ['organic_combed','Algodón orgánico peinado','Combed organic cotton','Cotó orgànic pentinat'],
+              ['draped_twill','Sarga de mezcla con caída','Drapey blended twill','Sarja de barreja amb caiguda'],
+              ['vegetable_hide','Cuero curtido vegetal','Vegetable-tanned leather','Cuir d’adobament vegetal'],
+              ['oxford_cotton','Algodón Oxford hilado','Woven Oxford cotton','Cotó Oxford filat'],
+              ['cotton_gabardine','Gabardina hidrófuga de algodón','Water-repellent cotton gabardine','Gavardina hidròfuga de cotó'],
+              ['boxcalf','Piel boxcalf con suela cuero','Boxcalf leather with leather sole','Pell boxcalf amb sola de cuir'],
+              ['organic_cotton','Algodón orgánico','Organic cotton','Cotó orgànic'],
+              ['dense_twill','Algodón sarga denso','Dense cotton twill','Sarja de cotó densa'],
+              ['essential','Tejido esencial','Essential fabric','Teixit essencial']
+          ]
+          helper = '    // ARACHNE_P2_FABRIC_START\n    const FABRIC_COPY = Object.freeze({\n'
+          helper += ',\n'.join('      '+key+': Object.freeze('+json.dumps(dict(zip(['es','en','ca'],values)),ensure_ascii=False)+')' for key,*values in rows)
+          helper += '''
+              });
+              function fabricText(garment, lang = 'es') {
+                const raw = typeof garment?.fabric === 'string' ? garment.fabric : '';
+                const key = garment?.fabricKey;
+                const entry = typeof key === 'string' && Object.hasOwn(FABRIC_COPY, key) ? FABRIC_COPY[key] : null;
+                return entry && raw === entry.es ? entry[['es','en','ca'].includes(lang) ? lang : 'es'] : raw;
+              }
+              function editFabric(garment, value) {
+                return { ...garment, fabric: value, fabricKey: null };
+              }
+              // ARACHNE_P2_FABRIC_END
+          '''
+          anchor = '    const { useState, useEffect, useMemo, useRef } = React;'
+          patches = [(anchor, anchor+'\n\n'+helper)]
+          for i,(key,es,en,ca) in enumerate(rows[:-1]):
+              prop = 'defaultFabric' if i < 9 else 'fabric'
+              old = prop+': '+json.dumps(es,ensure_ascii=False)+','
+              match = re.search(r'(?m)^([ \t]*)'+re.escape(old), text)
+              assert match, old
+              patches.append((old, old+'\n'+match.group(1)+('defaultFabricKey' if i < 9 else 'fabricKey')+': '+json.dumps(key)+','))
+          patches += [
+          ('fabric: capturedGarmentData.fabric,','fabric: capturedGarmentData.fabric,\n          fabricKey: capturedGarmentData.fabricKey,'),
+          ('fabric: template.defaultFabric,','fabric: template.defaultFabric,\n          fabricKey: template.defaultFabricKey,'),
+          ('fabric: customizingEssential.fabric.trim() || "Tejido esencial",','fabric: customizingEssential.fabric.trim() || "Tejido esencial",\n          fabricKey: customizingEssential.fabric.trim() ? customizingEssential.fabricKey : "essential",'),
+          ('value={customizingEssential.fabric}','value={fabricText(customizingEssential, lang)}'),
+          ('onChange={(e) => setCustomizingEssential({ ...customizingEssential, fabric: e.target.value })}','onChange={(e) => setCustomizingEssential(editFabric(customizingEssential, e.target.value))}'),
+          ('{selectedGarmentModal.fabric}','{fabricText(selectedGarmentModal, lang)}'),
+          ('value={editedGarmentData.fabric}','value={fabricText(editedGarmentData, lang)}'),
+          ('onChange={(e) => setEditedGarmentData({ ...editedGarmentData, fabric: e.target.value })}','onChange={(e) => setEditedGarmentData(editFabric(editedGarmentData, e.target.value))}')]
+          for old,new in patches:
+              assert text.count(old)==1, 'Missing or ambiguous anchor: '+old[:100]
+              text=text.replace(old,new,1)
+          assert blob(text.encode('utf-8')) == '266e896e5e836521ad6c04b8710878ba81e35e55', 'Unexpected result'
+          test = gzip.decompress(base64.b64decode('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'))
+          assert hashlib.sha256(test).hexdigest() == 'e4312245bc9141409ce98d1105117f91e6cf3d528251972d77d02f931d4c85bf'
+          Path('index-preview.html').write_bytes(text.encode('utf-8'))
+          Path('test/p2-fabric.test.mjs').write_bytes(test)
+          PY
+      - name: Verify original page, scope, syntax and all block tests
+        run: |
+          set -euo pipefail
+          test "$(git hash-object index.html)" = 2142d0bd6d20e2d50d4864eaf2d33560bb00cec9
+          test "$(git diff --name-only)" = index-preview.html
+          test "$(git ls-files --others --exclude-standard)" = test/p2-fabric.test.mjs
+          for file in src/engine/*.js src/ui/*.js; do
+            node --input-type=module --check < "$file"
+          done
+          node --test --test-reporter=tap test/*.test.mjs
+      - name: Commit only the P2 application files
+        env:
+          EXPECTED_HEAD: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git ls-remote origin refs/heads/main | cut -f1)" = "$EXPECTED_HEAD"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- index-preview.html test/p2-fabric.test.mjs
+          git commit -m 'Translate default garment compositions in ES EN CA without changing custom text'
+          git push origin HEAD:main
+      - name: Request existing verification workflow
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: 'anxavi', repo: 'anxavi.github.io', workflow_id: 'ci.yml', ref: 'main'
+            });
+      - name: Request publication on existing GitHub Pages site
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.request('POST /repos/{owner}/{repo}/pages/builds', {
+              owner: 'anxavi', repo: 'anxavi.github.io'
+            });
