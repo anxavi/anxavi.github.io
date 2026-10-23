@@ -97,6 +97,7 @@ test('old UI failure cannot overwrite current success', async () => {
   old.reject(new Error('obsolete')); await first;
   assert.equal(h.state.error, null); assert.equal(h.state.count, 1); assert.equal(h.state.loading, 'success');
 });
-test('three context controls have disabled attribute', () => {
-  assert.equal((html.match(/disabled=\{isGenerating\}\s+aria-disabled=\{isGenerating\}/g) || []).length, 3);
+test('primary context and visual journey receive the generation lock', () => {
+  assert.equal((html.match(/disabled=\{isGenerating\}\s+aria-disabled=\{isGenerating\}/g) || []).length, 1);
+  assert.match(html, /__ARACHNE_JOURNEY_PANEL__[\s\S]{0,500}disabled: isGenerating/);
 });

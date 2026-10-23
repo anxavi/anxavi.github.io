@@ -976,6 +976,7 @@
 
       // Configuración de la Lanzadera de Estilo ("Hoy")
       const [eventContext, setEventContext] = useState('office');
+      const [journeyPreview, setJourneyPreview] = useState({enabled: false, type: "gym", showExample: false});
       const [dualJourney, setDualJourney] = useState(false);
       const [dualJourneyType, setDualJourneyType] = useState('dinner');
 
@@ -1684,49 +1685,7 @@
                   </div>
 
                   {/* Transición de Doble Jornada */}
-                  <div className="pt-2 border-t border-arachne-border">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-semibold text-arachne-ink">{t.dualJourneyTitle}</span>
-                      <button
-                        disabled={isGenerating}
-                          aria-disabled={isGenerating}
-                          style={isGenerating ? { opacity: 0.45, cursor: 'not-allowed' } : undefined}
-                          onClick={() => { if (!generationRequestRef.current.abortController) setDualJourney(!dualJourney); }}
-                        className={`w-9 h-5 rounded-full transition-colors relative p-0.5 ${
-                          dualJourney ? 'bg-arachne-sage' : 'bg-zinc-300'
-                        }`}
-                      >
-                        <div className={`w-4 h-4 rounded-full bg-white transition-transform ${
-                          dualJourney ? 'translate-x-4' : 'translate-x-0'
-                        }`} />
-                      </button>
-                    </div>
-
-                    {dualJourney && (
-                      <div className="grid grid-cols-3 gap-1.5 pt-1 animate-fadeInScale">
-                        {[
-                          { id: 'dinner', label: t.dualOffDinner },
-                          { id: 'gym', label: t.dualWorkGym },
-                          { id: 'party', label: t.dualCasualParty }
-                        ].map(dj => (
-                          <button
-                            key={dj.id}
-                            disabled={isGenerating}
-                          aria-disabled={isGenerating}
-                          style={isGenerating ? { opacity: 0.45, cursor: 'not-allowed' } : undefined}
-                          onClick={() => { if (!generationRequestRef.current.abortController) setDualJourneyType(dj.id); }}
-                            className={`text-[10px] py-1.5 px-2 rounded border text-center transition-all ${
-                              dualJourneyType === dj.id
-                                ? 'bg-arachne-terracotta border-arachne-terracotta text-white font-semibold'
-                                : 'bg-arachne-surface/50 border-arachne-border text-arachne-ink'
-                            }`}
-                          >
-                            {dj.label}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  {window.__ARACHNE_JOURNEY_PANEL__ && React.createElement(window.__ARACHNE_JOURNEY_PANEL__, {lang, occasion: eventContext, activities: window.__ARACHNE_JOURNEY_ACTIVITIES__, value: journeyPreview, onChange: setJourneyPreview, onReview: () => setCurrentView("wardrobe"), disabled: isGenerating})}
 
                   {/* BOTÓN DISPARADOR "DISEÑAR" */}
                                     {inventoryLoadError && <p role="alert" className="text-xs text-arachne-terracotta">{lang === 'en' ? 'Wardrobe tools could not load. Reload the page.' : lang === 'ca' ? 'No s’han pogut carregar les eines de l’armari. Recarrega la pàgina.' : 'No se pudieron cargar las herramientas del armario. Recarga la página.'}</p>}
