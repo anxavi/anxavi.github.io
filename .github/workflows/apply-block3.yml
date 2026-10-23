@@ -34,12 +34,39 @@ jobs:
         run: npm install --prefix "$RUNNER_TEMP/arachne-parser" --no-save --ignore-scripts --package-lock=false @babel/parser
       - name: Apply guarded block 3 AST patch
         run: NODE_PATH="$RUNNER_TEMP/arachne-parser/node_modules" node tools/apply-block3.cjs
-      - name: Test all three blocks
+      - name: Check module syntax
         run: |
           set -euo pipefail
           node --check src/engine/presentation.js
           node --check src/engine/browser.js
+      - name: Test all three blocks
+        run: |
+          set -euo pipefail
           node --test test/block1.test.mjs test/block2.test.mjs test/block3.test.mjs
+      - name: Remove indentation from blank lines only
+        run: |
+          python3 - <<'PY'
+          import re
+          from pathlib import Path
+          path = Path('index-preview.html')
+          text = path.read_text(encoding='utf-8')
+          cleaned = re.sub(r'(?m)^[ \t]+$', '', text)
+          with path.open('w', encoding='utf-8', newline='') as stream:
+              stream.write(cleaned)
+          PY
+      - name: Recheck JSX after whitespace normalization
+        run: |
+          NODE_PATH="$RUNNER_TEMP/arachne-parser/node_modules" node - <<'JS'
+          const fs = require('node:fs');
+          const parser = require('@babel/parser');
+          const html = fs.readFileSync('index-preview.html', 'utf8');
+          const match = html.match(/<script type="text\/babel">([\s\S]*?)<\/script>/);
+          if (!match) throw Error('JSX script missing');
+          parser.parse(match[1], { sourceType: 'script', plugins: ['jsx'] });
+          JS
+      - name: Check diff and original page integrity
+        run: |
+          set -euo pipefail
           git diff --check
           test "$(git hash-object index.html)" = 2142d0bd6d20e2d50d4864eaf2d33560bb00cec9
       - name: Commit preview changes only
