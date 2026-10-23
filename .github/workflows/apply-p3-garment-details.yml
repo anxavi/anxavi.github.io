@@ -1,0 +1,89 @@
+name: Apply guarded P3 garment details
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/apply-p3-garment-details.yml']
+permissions:
+  contents: write
+  actions: write
+  pages: write
+concurrency:
+  group: arachne-apply-p3-garment-details
+  cancel-in-progress: false
+jobs:
+  apply:
+    if: github.repository == 'anxavi/anxavi.github.io' && github.event.head_commit.message == 'Prepare guarded P3 garment detail application'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify exact approved base
+        env:
+          EXPECTED_HEAD: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test "$(git rev-parse HEAD^)" = 92446541905ea3d4530a6d7911083bba34d2421e
+          test "$(git diff-tree --no-commit-id --name-only -r HEAD)" = .github/workflows/apply-p3-garment-details.yml
+      - name: Apply only the approved P3 patch and tests
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import base64, gzip, hashlib, json
+          def blob(data):
+              return hashlib.sha1(b'blob '+str(len(data)).encode()+b'\0'+data).hexdigest()
+          original = Path('index-preview.html').read_bytes()
+          assert blob(original) == '266e896e5e836521ad6c04b8710878ba81e35e55', 'Preview changed: stop and review'
+          assert blob(Path('index.html').read_bytes()) == '2142d0bd6d20e2d50d4864eaf2d33560bb00cec9', 'Original page integrity mismatch'
+          assert not Path('test/p3-garment-details.test.mjs').exists(), 'P3 test already exists'
+          encoded = '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'
+          payload = gzip.decompress(base64.b64decode(encoded))
+          assert hashlib.sha256(payload).hexdigest() == '2d046a402fcb7d94c1fd0b02c46e700ccc4d77e0f09d772cdd2aa36fa23c6450', 'Patch payload mismatch'
+          data = json.loads(payload)
+          text = original.decode('utf-8')
+          for old,new in data['patches']:
+              assert text.count(old) == 1, 'Missing or ambiguous anchor: '+old[:100]
+              text = text.replace(old,new,1)
+          updated = text.encode('utf-8')
+          assert blob(updated) == 'a176a363a7f7f45e54a14818ef504590bc30bbc1', 'Unexpected P3 result'
+          Path('index-preview.html').write_bytes(updated)
+          Path('test/p3-garment-details.test.mjs').write_text(data['tests'],encoding='utf-8')
+          PY
+      - name: Verify protected page, scope, syntax and all tests
+        run: |
+          set -euo pipefail
+          test "$(git hash-object index.html)" = 2142d0bd6d20e2d50d4864eaf2d33560bb00cec9
+          test "$(git diff --name-only)" = index-preview.html
+          test "$(git ls-files --others --exclude-standard)" = test/p3-garment-details.test.mjs
+          for file in src/engine/*.js src/ui/*.js; do
+            node --input-type=module --check < "$file"
+          done
+          node --test --test-reporter=tap test/*.test.mjs
+      - name: Commit only the approved P3 files
+        env:
+          EXPECTED_HEAD: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git ls-remote origin refs/heads/main | cut -f1)" = "$EXPECTED_HEAD"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- index-preview.html test/p3-garment-details.test.mjs
+          git commit -m 'Open outfit garment details in read-only mode while preserving wardrobe editing'
+          git push origin HEAD:main
+      - name: Request existing verification workflow
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.actions.createWorkflowDispatch({owner:'anxavi',repo:'anxavi.github.io',workflow_id:'ci.yml',ref:'main'});
+      - name: Request publication on existing Pages site
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.request('POST /repos/{owner}/{repo}/pages/builds',{owner:'anxavi',repo:'anxavi.github.io'});
