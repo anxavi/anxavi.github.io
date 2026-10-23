@@ -100,6 +100,40 @@
   <script type="text/babel">
     const { useState, useEffect, useMemo, useRef } = React;
 
+    // ARACHNE_P2_FABRIC_START
+    const FABRIC_COPY = Object.freeze({
+      combed_cotton: Object.freeze({"es": "100% Algodón peinado", "en": "100% Combed cotton", "ca": "100% Cotó pentinat"}),
+      cotton_poplin: Object.freeze({"es": "Algodón popelín hilado", "en": "Woven cotton poplin", "ca": "Popelín de cotó filat"}),
+      stretch_twill: Object.freeze({"es": "Sarga de algodón elástica", "en": "Stretch cotton twill", "ca": "Sarja de cotó elàstica"}),
+      rigid_denim: Object.freeze({"es": "Denim 100% algodón rígido", "en": "Rigid 100% cotton denim", "ca": "Denim 100% cotó rígid"}),
+      tailoring_wool: Object.freeze({"es": "Lana fría de sastrería", "en": "Tailoring tropical wool", "ca": "Llana freda de sastreria"}),
+      dense_canvas: Object.freeze({"es": "Algodón canvas denso", "en": "Dense cotton canvas", "ca": "Lona de cotó densa"}),
+      vegetable_leather: Object.freeze({"es": "Piel de curtición vegetal", "en": "Vegetable-tanned leather", "ca": "Pell d’adobament vegetal"}),
+      waxed_leather: Object.freeze({"es": "Cuero curtido encerado", "en": "Waxed tanned leather", "ca": "Cuir adobat encerat"}),
+      canvas_leather: Object.freeze({"es": "Lona hidrófuga y cuero", "en": "Water-repellent canvas and leather", "ca": "Lona hidròfuga i cuir"}),
+      structured_wool: Object.freeze({"es": "100% Lana fría estructurada", "en": "100% Structured tropical wool", "ca": "100% Llana freda estructurada"}),
+      organic_combed: Object.freeze({"es": "Algodón orgánico peinado", "en": "Combed organic cotton", "ca": "Cotó orgànic pentinat"}),
+      draped_twill: Object.freeze({"es": "Sarga de mezcla con caída", "en": "Drapey blended twill", "ca": "Sarja de barreja amb caiguda"}),
+      vegetable_hide: Object.freeze({"es": "Cuero curtido vegetal", "en": "Vegetable-tanned leather", "ca": "Cuir d’adobament vegetal"}),
+      oxford_cotton: Object.freeze({"es": "Algodón Oxford hilado", "en": "Woven Oxford cotton", "ca": "Cotó Oxford filat"}),
+      cotton_gabardine: Object.freeze({"es": "Gabardina hidrófuga de algodón", "en": "Water-repellent cotton gabardine", "ca": "Gavardina hidròfuga de cotó"}),
+      boxcalf: Object.freeze({"es": "Piel boxcalf con suela cuero", "en": "Boxcalf leather with leather sole", "ca": "Pell boxcalf amb sola de cuir"}),
+      organic_cotton: Object.freeze({"es": "Algodón orgánico", "en": "Organic cotton", "ca": "Cotó orgànic"}),
+      dense_twill: Object.freeze({"es": "Algodón sarga denso", "en": "Dense cotton twill", "ca": "Sarja de cotó densa"}),
+      essential: Object.freeze({"es": "Tejido esencial", "en": "Essential fabric", "ca": "Teixit essencial"})
+    });
+    function fabricText(garment, lang = 'es') {
+      const raw = typeof garment?.fabric === 'string' ? garment.fabric : '';
+      const key = garment?.fabricKey;
+      const entry = typeof key === 'string' && Object.hasOwn(FABRIC_COPY, key) ? FABRIC_COPY[key] : null;
+      return entry && raw === entry.es ? entry[['es','en','ca'].includes(lang) ? lang : 'es'] : raw;
+    }
+    function editFabric(garment, value) {
+      return { ...garment, fabric: value, fabricKey: null };
+    }
+    // ARACHNE_P2_FABRIC_END
+
+
     // =========================================================================
     // 1. SISTEMA DE ICONOGRAFÍA SVG EDITORIAL REDISEÑADO & ICONOS NATIVOS
     // =========================================================================
@@ -662,6 +696,7 @@
         name: { es: "Camiseta Básica Unisex", en: "Basic Unisex T-Shirt", ca: "Samarreta Bàsica Unisex" },
         desc: { es: "Algodón de alto gramaje, cuello redondo regular", en: "Heavyweight cotton, regular crewneck", ca: "Cotó d'alt gramatge, coll rodó regular" },
         defaultFabric: "100% Algodón peinado",
+        defaultFabricKey: "combed_cotton",
         defaultFormality: 3,
         defaultHex: "#18181B",
         imageUrl: "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=600&q=80"
@@ -673,6 +708,7 @@
         name: { es: "Camisa Clásica Popelín", en: "Classic Poplin Shirt", ca: "Camisa Clàssica Popelín" },
         desc: { es: "Corte recto estructurado, cuello italiano o abotonado", en: "Structured straight fit, buttoned collar", ca: "Tall recte estructurat, coll italià o botons" },
         defaultFabric: "Algodón popelín hilado",
+        defaultFabricKey: "cotton_poplin",
         defaultFormality: 6,
         defaultHex: "#93C5FD",
         imageUrl: "https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?auto=format&fit=crop&w=600&q=80"
@@ -684,6 +720,7 @@
         name: { es: "Pantalón Chino / Sastre", en: "Chino / Tailored Trousers", ca: "Pantaló Xino / Sastre" },
         desc: { es: "Tiro medio con pinzas, caída recta versátil", en: "Mid-rise pleated, versatile straight drape", ca: "Tir mitjà amb pinces, caiguda recta versàtil" },
         defaultFabric: "Sarga de algodón elástica",
+        defaultFabricKey: "stretch_twill",
         defaultFormality: 6,
         defaultHex: "#D7C4B7",
         imageUrl: "https://images.unsplash.com/photo-1473966968600-fa801b869a1a?auto=format&fit=crop&w=600&q=80"
@@ -695,6 +732,7 @@
         name: { es: "Pantalón Vaquero / Jeans", en: "Classic Denim Jeans", ca: "Pantaló Vaquer / Jeans" },
         desc: { es: "Denim auténtico sin roturas, lavado neutro atemporal", en: "Authentic raw or rinsed denim, timeless cut", ca: "Denim autèntic sense trencaments, rentat neutre" },
         defaultFabric: "Denim 100% algodón rígido",
+        defaultFabricKey: "rigid_denim",
         defaultFormality: 4,
         defaultHex: "#3B82F6",
         imageUrl: "https://images.unsplash.com/photo-1542272604-780c96856592?auto=format&fit=crop&w=600&q=80"
@@ -706,6 +744,7 @@
         name: { es: "Blazer Recta / Americana", en: "Straight Tailored Blazer", ca: "Blazer Recta / Americana" },
         desc: { es: "Hombros estructurados, botonadura simple elegante", en: "Clean structured shoulder, single breasted", ca: "Espatlles estructurades, botonadura simple" },
         defaultFabric: "Lana fría de sastrería",
+        defaultFabricKey: "tailoring_wool",
         defaultFormality: 8,
         defaultHex: "#27272A",
         imageUrl: "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?auto=format&fit=crop&w=600&q=80"
@@ -717,6 +756,7 @@
         name: { es: "Cazadora / Sobrecamisa", en: "Overshirt / Transition Jacket", ca: "Caçadora / Sobrecamisa" },
         desc: { es: "Prenda de entretiempo con bolsillos de parche", en: "Patch-pocket versatile mid-layer jacket", ca: "Peça d'entretemps amb butxaques de pegat" },
         defaultFabric: "Algodón canvas denso",
+        defaultFabricKey: "dense_canvas",
         defaultFormality: 5,
         defaultHex: "#C2A383",
         imageUrl: "https://images.unsplash.com/photo-1576995853123-5a10305d93c0?auto=format&fit=crop&w=600&q=80"
@@ -728,6 +768,7 @@
         name: { es: "Zapatillas Blancas Neutras", en: "Minimalist White Sneakers", ca: "Vambes Blanques Neutres" },
         desc: { es: "Perfil bajo pulido, suela cupsole contemporánea", en: "Low profile leather, clean silhouette", ca: "Perfil baix polit, sola cupsole contemporània" },
         defaultFabric: "Piel de curtición vegetal",
+        defaultFabricKey: "vegetable_leather",
         defaultFormality: 5,
         defaultHex: "#F1F5F9",
         imageUrl: "https://images.unsplash.com/photo-1560769629-975ec94e6a86?auto=format&fit=crop&w=600&q=80"
@@ -739,6 +780,7 @@
         name: { es: "Botines Chelsea / Mocasines", en: "Chelsea Boots / Loafers", ca: "Botins Chelsea / Mocassins" },
         desc: { es: "Silueta sobria de piel para transiciones formales", en: "Classic leather profile for smart casual dapper", ca: "Silueta sòbria de pell per a transicions formals" },
         defaultFabric: "Cuero curtido encerado",
+        defaultFabricKey: "waxed_leather",
         defaultFormality: 7,
         defaultHex: "#451A03",
         imageUrl: "https://images.unsplash.com/photo-1533867617858-e7b97e060509?auto=format&fit=crop&w=600&q=80"
@@ -750,6 +792,7 @@
         name: { es: "Bolso Tote / Mochila Minimal", en: "Everyday Tote / City Pack", ca: "Bossa Tote / Motxilla Mínima" },
         desc: { es: "Accesorio funcional de líneas arquitectónicas", en: "Architectural clean accessory for daily carry", ca: "Accessori funcional de línies arquitectòniques" },
         defaultFabric: "Lona hidrófuga y cuero",
+        defaultFabricKey: "canvas_leather",
         defaultFormality: 5,
         defaultHex: "#18181B",
         imageUrl: "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=600&q=80"
@@ -766,6 +809,7 @@
         subCategory: "blazer",
         color: { primaryHex: "#27272A", undertone: "neutral", family: "grey" },
         fabric: "100% Lana fría estructurada",
+        fabricKey: "structured_wool",
         formality: 8,
         thermalRange: { minTempC: 12, maxTempC: 22 },
         state: "available",
@@ -781,6 +825,7 @@
         subCategory: "t-shirt",
         color: { primaryHex: "#FFFFFF", undertone: "cold", family: "white" },
         fabric: "Algodón orgánico peinado",
+        fabricKey: "organic_combed",
         formality: 4,
         thermalRange: { minTempC: 14, maxTempC: 28 },
         state: "available",
@@ -796,6 +841,7 @@
         subCategory: "trousers",
         color: { primaryHex: "#475569", undertone: "cold", family: "grey" },
         fabric: "Sarga de mezcla con caída",
+        fabricKey: "draped_twill",
         formality: 7,
         thermalRange: { minTempC: 10, maxTempC: 24 },
         state: "available",
@@ -811,6 +857,7 @@
         subCategory: "sneakers",
         color: { primaryHex: "#F1F5F9", undertone: "neutral", family: "white" },
         fabric: "Cuero curtido vegetal",
+        fabricKey: "vegetable_hide",
         formality: 5,
         thermalRange: { minTempC: 8, maxTempC: 26 },
         state: "available",
@@ -826,6 +873,7 @@
         subCategory: "shirt",
         color: { primaryHex: "#93C5FD", undertone: "cold", family: "blue" },
         fabric: "Algodón Oxford hilado",
+        fabricKey: "oxford_cotton",
         formality: 6,
         thermalRange: { minTempC: 12, maxTempC: 24 },
         state: "available",
@@ -841,6 +889,7 @@
         subCategory: "trench",
         color: { primaryHex: "#C2A383", undertone: "warm", family: "earth" },
         fabric: "Gabardina hidrófuga de algodón",
+        fabricKey: "cotton_gabardine",
         formality: 8,
         thermalRange: { minTempC: 8, maxTempC: 18 },
         state: "available",
@@ -856,6 +905,7 @@
         subCategory: "loafers",
         color: { primaryHex: "#451A03", undertone: "warm", family: "earth" },
         fabric: "Piel boxcalf con suela cuero",
+        fabricKey: "boxcalf",
         formality: 9,
         thermalRange: { minTempC: 12, maxTempC: 26 },
         state: "available",
@@ -1024,6 +1074,7 @@
         size: "M",
         category: "top",
         fabric: "Algodón orgánico",
+        fabricKey: "organic_cotton",
         formality: 5
       });
       const fileInputRef = useRef(null);
@@ -1333,6 +1384,7 @@
                 size: "M",
                 category: "outerwear",
                 fabric: "Algodón sarga denso",
+                fabricKey: "dense_twill",
                 formality: 6
               });
               setCaptureStage('preview_edit');
@@ -1358,6 +1410,7 @@
           subCategory: "outerwear",
           color: { primaryHex: "#2C3E50", undertone: "neutral", family: "blue" },
           fabric: capturedGarmentData.fabric,
+          fabricKey: capturedGarmentData.fabricKey,
           formality: Number(capturedGarmentData.formality) || 5,
           thermalRange: { minTempC: 12, maxTempC: 22 },
           state: "available",
@@ -1386,6 +1439,7 @@
           category: template.category,
           subCategory: template.id.replace('gen_', ''),
           fabric: template.defaultFabric,
+          fabricKey: template.defaultFabricKey,
           formality: template.defaultFormality,
           imageUrl: template.imageUrl,
           color: {
@@ -1412,6 +1466,7 @@
           subCategory: customizingEssential.subCategory,
           color: customizingEssential.color,
           fabric: customizingEssential.fabric.trim() || "Tejido esencial",
+          fabricKey: customizingEssential.fabric.trim() ? customizingEssential.fabricKey : "essential",
           formality: Number(customizingEssential.formality) || 5,
           thermalRange: { minTempC: 10, maxTempC: 25 },
           state: "available",
@@ -2415,8 +2470,8 @@
                           </label>
                           <input
                             type="text"
-                            value={customizingEssential.fabric}
-                            onChange={(e) => setCustomizingEssential({ ...customizingEssential, fabric: e.target.value })}
+                            value={fabricText(customizingEssential, lang)}
+                            onChange={(e) => setCustomizingEssential(editFabric(customizingEssential, e.target.value))}
                             className="w-full text-xs p-2 rounded-lg border border-arachne-border outline-none focus:border-arachne-ink"
                           />
                         </div>
@@ -2602,7 +2657,7 @@
                         <span className="text-[10px] font-mono text-arachne-inkMuted">{selectedGarmentModal.timesWorn} {t.timesWornLabel}</span>
                       </div>
                       <h3 className="font-serif text-lg font-bold text-arachne-ink">{selectedGarmentModal.name}</h3>
-                      <p className="text-xs text-arachne-inkMuted">{selectedGarmentModal.fabric}</p>
+                      <p className="text-xs text-arachne-inkMuted">{fabricText(selectedGarmentModal, lang)}</p>
                     </div>
 
                     <div className="flex items-center justify-between text-xs py-2 border-y border-arachne-border">
@@ -2680,8 +2735,8 @@
                       <label className="text-[10px] font-bold uppercase text-arachne-inkMuted block">{t.fabricLabel}</label>
                       <input
                         type="text"
-                        value={editedGarmentData.fabric}
-                        onChange={(e) => setEditedGarmentData({ ...editedGarmentData, fabric: e.target.value })}
+                        value={fabricText(editedGarmentData, lang)}
+                        onChange={(e) => setEditedGarmentData(editFabric(editedGarmentData, e.target.value))}
                         className="w-full text-xs p-2 rounded border border-arachne-border outline-none"
                       />
                     </div>
