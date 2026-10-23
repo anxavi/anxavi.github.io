@@ -1,0 +1,75 @@
+name: Verify ARACHNE blocks
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'test/**'
+      - 'index-preview.html'
+      - 'index.html'
+      - '.github/workflows/ci.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'test/**'
+      - 'index-preview.html'
+      - 'index.html'
+      - '.github/workflows/ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: arachne-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify original page integrity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git hash-object index.html)" = 2142d0bd6d20e2d50d4864eaf2d33560bb00cec9
+      - name: Check module syntax without executing browser code
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in src/engine/*.js src/ui/*.js; do
+            test -f "$file" || continue
+            echo "Checking $file"
+            node --input-type=module --check < "$file"
+          done
+      - name: Run tests for all available blocks
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test --test-reporter=tap test/*.test.mjs | tee "$RUNNER_TEMP/arachne-tests.tap"
+      - name: Write verification summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo '## ARACHNE verification'
+            echo 'Scope: module syntax, block tests, and original page integrity.'
+            echo 'No application files were modified by this workflow.'
+            echo 'JSX parsing and browser acceptance are separate checks.'
+            if test -f "$RUNNER_TEMP/arachne-tests.tap"; then
+              echo '```text'
+              grep -E '^# (tests|pass|fail|cancelled|skipped) ' "$RUNNER_TEMP/arachne-tests.tap" || true
+              echo '```'
+            else
+              echo 'Tests were not reached; inspect earlier steps.'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
