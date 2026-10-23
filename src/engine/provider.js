@@ -1,42 +1,9 @@
+import { aborted, fetchRemote } from './async-control.js';
 import { ENGINE_CONTRACT_VERSION, INTENTS, DEFAULT_RUNTIME_CONFIG } from './constants.js';
 import { makeResponse, validateGenerateRequest, validateGenerateResponse } from './contracts.js';
 import { generateLocalOutfit } from './generator.js';
 import { validateAndNormalizeWardrobe, validateContext } from './validation.js';
 import { validateOutfitAgainstInventory } from './rules.js';
-
-function raceTimeout(ms, signal) {
-  return new Promise((_, reject) => {
-    const timer = setTimeout(() => reject(new Error(`Timed out after ${ms}ms`)), ms);
-    if (signal) {
-      signal.addEventListener('abort', () => {
-        clearTimeout(timer);
-        reject(new DOMException('Operation canceled', 'AbortError'));
-      }, { once: true });
-    }
-  });
-}
-
-async function fetchRemote({ endpoint, body, timeoutMs, signal }) {
-  if (!endpoint) {
-    throw new Error('Remote endpoint not configured');
-  }
-  if (!/^https:\/\//i.test(endpoint)) {
-    throw new Error('Remote endpoint must be HTTPS');
-  }
-
-  const request = fetch(endpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-    signal
-  });
-
-  const response = await Promise.race([request, raceTimeout(timeoutMs, signal)]);
-  if (!response.ok) {
-    throw new Error(`Remote provider failed with ${response.status}`);
-  }
-  return response.json();
-}
 
 function buildRequest({ context, wardrobe }) {
   return {
@@ -57,6 +24,7 @@ export function createOutfitEngine(userConfig = {}) {
 
   async function generate(input) {
     const { wardrobe, context, intent = INTENTS.DEFAULT, currentOutfit = null, history = [], signal } = input;
+    aborted(signal);
     const contextValidation = validateContext({ ...context, intent });
     const wardrobeValidation = validateAndNormalizeWardrobe(wardrobe);
 
@@ -110,6 +78,7 @@ export function createOutfitEngine(userConfig = {}) {
           signal
         });
 
+        aborted(signal);
         const responseContract = validateGenerateResponse(remotePayload);
         if (!responseContract.valid) {
           throw new Error(`Remote contract invalid: ${responseContract.errors.map((e) => e.code).join(', ')}`);
@@ -137,11 +106,13 @@ export function createOutfitEngine(userConfig = {}) {
           }
         });
       } catch (error) {
+        aborted(signal);
         if (error?.name === 'AbortError') throw error;
         remoteWarnings.push({ code: 'REMOTE_FALLBACK_LOCAL', message: `Remote provider failed, using local engine: ${error.message}`, path: 'provider' });
       }
     }
 
+    aborted(signal);
     const local = generateLocalOutfit({
       wardrobe: normalizedWardrobe,
       context: normalizedContext,
@@ -150,6 +121,7 @@ export function createOutfitEngine(userConfig = {}) {
       runtimeConfig: config.runtime
     });
 
+    aborted(signal);
     if (!local.ok) {
       return makeResponse({
         provider: 'local',

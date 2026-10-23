@@ -979,12 +979,7 @@
       const [dualJourney, setDualJourney] = useState(false);
       const [dualJourneyType, setDualJourneyType] = useState('dinner');
 
-      useEffect(() => {
-        if (generationState === 'loading' && generationRequestRef.current.abortController) {
-          generationRequestRef.current.abortController.abort();
-          setGenerationState('idle');
-        }
-      }, [eventContext, dualJourney, dualJourneyType]);
+
 
       // Outfit Prescrito
       const [currentOutfit, setCurrentOutfit] = useState(null);
@@ -1036,18 +1031,23 @@
       //      // =========================================================================
       // MOTOR MODULAR ASÍNCRONO (validación + búsqueda heurística + proveedor local/remoto)
       // =========================================================================
-      const cancelGeneration = () => {
-        if (generationRequestRef.current.abortController) {
-          generationRequestRef.current.abortController.abort();
-        }
-        if (generationRequestRef.current.waitTimer) {
-          clearTimeout(generationRequestRef.current.waitTimer);
-          generationRequestRef.current.waitTimer = null;
-        }
-        setGenerationState('idle');
+      const invalidateGeneration = () => {
+        const previous = generationRequestRef.current;
+        generationRequestRef.current = { id: previous.id + 1, abortController: null, waitTimer: null };
+        clearTimeout(previous.waitTimer);
+        previous.abortController?.abort();
       };
-
-      useEffect(() => () => cancelGeneration(), []);
+      const cancelGeneration = () => {
+        invalidateGeneration();
+        setGenerationState('idle');
+        setGenerationError(null);
+        setGenerationWarning(null);
+        setShowRetryHint(false);
+      };
+      useEffect(() => () => invalidateGeneration(), []);
+      useEffect(() => {
+        if (generationRequestRef.current.abortController) cancelGeneration();
+      }, [eventContext, dualJourney, dualJourneyType, currentView, isAuthenticated, lang, wardrobe]);
 
       const resetInteractionState = () => {
         setSwipeState({ offsetX: 0, isDragging: false, startX: 0, startY: 0, isHorizontal: null });
@@ -1073,15 +1073,19 @@
         setGenerationWarning(null);
         setShowRetryHint(false);
 
-        cancelGeneration();
+        invalidateGeneration();
 
         const requestId = generationRequestRef.current.id + 1;
         const abortController = new AbortController();
+        const isCurrent = () => generationRequestRef.current.id === requestId && !abortController.signal.aborted;
+        const assertCurrent = () => {
+          if (!isCurrent()) throw new DOMException('Canceled', 'AbortError');
+        };
         generationRequestRef.current = {
           id: requestId,
           abortController,
           waitTimer: setTimeout(() => {
-            if (generationRequestRef.current.id === requestId) setShowRetryHint(true);
+            if (isCurrent()) setShowRetryHint(true);
           }, 10000)
         };
 
@@ -1090,11 +1094,12 @@
 
         try {
           await (window.__ARACHNE_ENGINE_READY__ || Promise.resolve());
+          assertCurrent();
           const engine = window.__ARACHNE_ENGINE__;
 
           if (!engine) throw new Error('Motor no disponible.');
 
-          const response = await engine.generate({
+          const response = await window.__ARACHNE_ASYNC__.abortable(engine.generate({
             wardrobe,
             context: {
               occasion: eventContext,
@@ -1111,9 +1116,9 @@
             currentOutfit,
             history,
             signal: abortController.signal
-          });
+          }), abortController.signal);
 
-          if (generationRequestRef.current.id !== requestId) return;
+          if (!isCurrent()) return;
 
           if (response.provider === 'local' && (response.diagnostics?.warnings || []).some(w => w.code === 'REMOTE_FALLBACK_LOCAL')) {
             setGenerationWarning(lang === 'en'
@@ -1126,9 +1131,10 @@
           const runtimeMin = Math.min(2500, Number(window.ARACHNE_MIN_VISUAL_MS || 1200));
           const elapsed = Date.now() - startedAt;
           if (response.result?.status === 'success' && elapsed < runtimeMin) {
-            await new Promise((resolve) => setTimeout(resolve, runtimeMin - elapsed));
+            await window.__ARACHNE_ASYNC__.delay(runtimeMin - elapsed, abortController.signal);
           }
 
+          assertCurrent();
           if (response.result?.status !== 'success') {
             setGenerationState('error');
             setGenerationError(response.result?.explanation || (lang === 'en' ? 'No valid outfit could be generated.' : lang === 'ca' ? 'No s’ha pogut generar un outfit vàlid.' : 'No se pudo generar un outfit válido.'));
@@ -1149,6 +1155,7 @@
             return;
           }
 
+          assertCurrent();
           setCurrentOutfit(mapped);
           setGeneratedCount(prev => prev + 1);
           resetInteractionState();
@@ -1164,7 +1171,7 @@
             }
             return;
           }
-          if (generationRequestRef.current.id !== requestId) return;
+          if (!isCurrent()) return;
           setGenerationState('error');
           setGenerationError(error?.message || (lang === 'en' ? 'Unexpected generation error.' : lang === 'ca' ? 'Error inesperat en la generació.' : 'Error inesperado en la generación.'));
         } finally {
@@ -1174,6 +1181,7 @@
               generationRequestRef.current.waitTimer = null;
             }
             generationRequestRef.current.abortController = null;
+            setShowRetryHint(false);
           }
         }
       };
@@ -1704,7 +1712,10 @@
                       ].map(ev => (
                         <button
                           key={ev.id}
-                          onClick={() => setEventContext(ev.id)}
+                          disabled={isGenerating}
+                          aria-disabled={isGenerating}
+                          style={isGenerating ? { opacity: 0.45, cursor: 'not-allowed' } : undefined}
+                          onClick={() => { if (!generationRequestRef.current.abortController) setEventContext(ev.id); }}
                           className={`text-xs py-2 px-3 rounded-lg border text-left transition-all font-medium ${
                             eventContext === ev.id
                               ? 'bg-arachne-ink border-arachne-ink text-white shadow-subtle'
@@ -1722,7 +1733,10 @@
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-xs font-semibold text-arachne-ink">{t.dualJourneyTitle}</span>
                       <button
-                        onClick={() => setDualJourney(!dualJourney)}
+                        disabled={isGenerating}
+                          aria-disabled={isGenerating}
+                          style={isGenerating ? { opacity: 0.45, cursor: 'not-allowed' } : undefined}
+                          onClick={() => { if (!generationRequestRef.current.abortController) setDualJourney(!dualJourney); }}
                         className={`w-9 h-5 rounded-full transition-colors relative p-0.5 ${
                           dualJourney ? 'bg-arachne-sage' : 'bg-zinc-300'
                         }`}
@@ -1742,7 +1756,10 @@
                         ].map(dj => (
                           <button
                             key={dj.id}
-                            onClick={() => setDualJourneyType(dj.id)}
+                            disabled={isGenerating}
+                          aria-disabled={isGenerating}
+                          style={isGenerating ? { opacity: 0.45, cursor: 'not-allowed' } : undefined}
+                          onClick={() => { if (!generationRequestRef.current.abortController) setDualJourneyType(dj.id); }}
                             className={`text-[10px] py-1.5 px-2 rounded border text-center transition-all ${
                               dualJourneyType === dj.id
                                 ? 'bg-arachne-terracotta border-arachne-terracotta text-white font-semibold'
