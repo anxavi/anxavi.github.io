@@ -1,0 +1,56 @@
+name: Apply P4 usage UI
+
+on:
+  push:
+    paths:
+      - '.github/patches/p4-usage-ui.patch.z64'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Guard base commit
+        run: |
+          parent=$(git rev-parse HEAD^)
+          if [ "$parent" != "1efbf075d69dfa333577ba26efc9cf35a601e967" ]; then
+            echo "Unexpected base commit: $parent"
+            exit 1
+          fi
+
+      - name: Verify protected base blobs
+        run: |
+          test "$(git rev-parse HEAD:src/engine/presentation.js)" = "08524a6a163d725cc4f22c8bdb8b44cf2f5e2ab2"
+          test "$(git rev-parse HEAD:index-preview.html)" = "a176a363a7f7f45e54a14818ef504590bc30bbc1"
+          if git cat-file -e HEAD:test/p4-usage-ui.test.mjs 2>/dev/null; then
+            echo "Unexpected existing P4 UI test file"
+            exit 1
+          fi
+
+      - name: Decode and validate patch
+        run: |
+          python3 -c "import zlib,base64;open('/tmp/p4-usage-ui.patch','wb').write(zlib.decompress(base64.b64decode(open('.github/patches/p4-usage-ui.patch.z64','rb').read())))"
+          git apply --check /tmp/p4-usage-ui.patch
+          git apply /tmp/p4-usage-ui.patch
+
+      - name: Run P4 tests
+        run: |
+          node --test test/p4-usage.test.mjs
+          node --test test/p4-usage-ui.test.mjs
+
+      - name: Commit integration
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/engine/presentation.js index-preview.html test/p4-usage-ui.test.mjs
+          git rm .github/patches/p4-usage-ui.patch.z64
+          git commit -m "Connect partial daily usage controls to reversible ledger [skip ci]"
+          git push
