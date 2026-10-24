@@ -21,7 +21,7 @@ jobs:
       - name: Guard base commit
         run: |
           parent=$(git rev-parse HEAD^)
-          if [ "$parent" != "1efbf075d69dfa333577ba26efc9cf35a601e967" ]; then
+          if [ "$parent" != "aff0e3f56d1eecb91140649af1f50e7c0cb338a8" ]; then
             echo "Unexpected base commit: $parent"
             exit 1
           fi
