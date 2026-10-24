@@ -3,6 +3,7 @@ name: Apply P4 usage UI
 on:
   push:
     paths:
+      - '.github/workflows/apply-p4-usage-ui.yml'
       - '.github/patches/p4-usage-ui.patch.z64'
   workflow_dispatch:
 
@@ -21,7 +22,7 @@ jobs:
       - name: Guard base commit
         run: |
           parent=$(git rev-parse HEAD^)
-          if [ "$parent" != "aff0e3f56d1eecb91140649af1f50e7c0cb338a8" ]; then
+          if [ "$parent" != "a7ed3b142dd95ed2c2a30255260f0dbbca3ef6b5" ]; then
             echo "Unexpected base commit: $parent"
             exit 1
           fi
@@ -35,11 +36,27 @@ jobs:
             exit 1
           fi
 
-      - name: Decode and validate patch
+      - name: Apply validated base patch
         run: |
-          python3 -c "import zlib,base64;open('/tmp/p4-usage-ui.patch','wb').write(zlib.decompress(base64.b64decode(open('.github/patches/p4-usage-ui.patch.z64','rb').read())))"
+          git show aff0e3f56d1eecb91140649af1f50e7c0cb338a8:.github/patches/p4-usage-ui.patch.z64 > /tmp/p4-usage-ui.patch.z64
+          python3 -c "import zlib,base64;open('/tmp/p4-usage-ui.patch','wb').write(zlib.decompress(base64.b64decode(open('/tmp/p4-usage-ui.patch.z64','rb').read())))"
           git apply --check /tmp/p4-usage-ui.patch
           git apply /tmp/p4-usage-ui.patch
+
+      - name: Fix UI test ledger initialization
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('test/p4-usage-ui.test.mjs')
+          text = path.read_text()
+          anchor = "} from '../src/engine/presentation.js';"
+          assert text.count(anchor) == 1
+          text = text.replace(anchor, anchor + "\nimport { createUsageLedger } from '../src/engine/usage.js';", 1)
+          old = "const ledger = createUsageSession(2);"
+          assert text.count(old) == 1
+          text = text.replace(old, "const ledger = createUsageLedger(2);", 1)
+          path.write_text(text)
+          PY
 
       - name: Run P4 tests
         run: |
