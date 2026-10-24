@@ -17,12 +17,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          fetch-depth: 0
 
       - name: Guard base commit
         run: |
           parent=$(git rev-parse HEAD^)
-          if [ "$parent" != "a7ed3b142dd95ed2c2a30255260f0dbbca3ef6b5" ]; then
+          if [ "$parent" != "6e4670d7e8ae5fc4ebed8574f5bd3e80ca2a767b" ]; then
             echo "Unexpected base commit: $parent"
             exit 1
           fi
