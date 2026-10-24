@@ -149,6 +149,14 @@
     }
     // ARACHNE_P3_DETAIL_END
 
+      // ARACHNE_P4_USAGE_START
+      const USAGE_COPY = {
+        es: { title:'Registrar uso de hoy', used:'Utilizado hoy', notUsed:'No utilizado', confirm:'Confirmar uso', revert:'Revertir uso', open:'Registrar uso', empty:'Selecciona al menos una prenda utilizada.', recorded:'Uso parcial registrado y contadores actualizados.', reverted:'Uso revertido correctamente.', already:'Este outfit ya tiene un uso registrado hoy.', unavailable:'Este look contiene prendas no disponibles. Revisa tu armario.', hint:'Desmarca las prendas que no hayas utilizado antes de confirmar.' },
+        en: { title:'Record today’s wear', used:'Used today', notUsed:'Not used', confirm:'Confirm wear', revert:'Revert wear', open:'Record wear', empty:'Select at least one garment you wore.', recorded:'Partial wear recorded and counters updated.', reverted:'Wear successfully reverted.', already:'This outfit already has a wear record for today.', unavailable:'This look contains unavailable garments. Review your wardrobe.', hint:'Deselect the garments you did not wear before confirming.' },
+        ca: { title:'Registra l’ús d’avui', used:'Utilitzat avui', notUsed:'No utilitzat', confirm:'Confirma l’ús', revert:'Reverteix l’ús', open:'Registra l’ús', empty:'Selecciona com a mínim una peça utilitzada.', recorded:'Ús parcial registrat i comptadors actualitzats.', reverted:'Ús revertit correctament.', already:'Aquest outfit ja té un ús registrat avui.', unavailable:'Aquest look conté peces no disponibles. Revisa l’armari.', hint:'Desmarca les peces que no hagis utilitzat abans de confirmar.' }
+      };
+      // ARACHNE_P4_USAGE_END
+
 
     // =========================================================================
     // 1. SISTEMA DE ICONOGRAFÍA SVG EDITORIAL REDISEÑADO & ICONOS NATIVOS
@@ -1124,6 +1132,12 @@
       const [inspectedLook, setInspectedLook] = useState(null);
       const [newTagInput, setNewTagInput] = useState("");
 
+      // ARACHNE_P4_USAGE_STATE_START
+      const [usageLedger, setUsageLedger] = useState(null);
+      const [usageSelection, setUsageSelection] = useState(null);
+      const [usageBusy, setUsageBusy] = useState(false);
+      // ARACHNE_P4_USAGE_STATE_END
+
       // Modal / Flujo de Captura
       const [showCaptureModal, setShowCaptureModal] = useState(false);
       const [captureStage, setCaptureStage] = useState('select'); // 'select' | 'preview_edit'
@@ -1397,19 +1411,126 @@
         showToast(p.copy(lang).savedToast);
         queueMicrotask(() => { savedActionRef.current = false; });
       };
-      const handleMarkSavedWorn = (id) => {
-        const p = window.__ARACHNE_PRESENTATION__;
-        if (!p || savedActionRef.current) return;
-        const result = p.markWorn(history, wardrobe, id);
-        if (!result.ok) { showToast(p.copy(lang).unavailable); return; }
-        if (result.duplicate) return;
-        savedActionRef.current = true;
-        setHistory(result.history);
-        setWardrobe(result.wardrobe);
-        if (inspectedLook?.id === id) setInspectedLook(result.history.find(look => look.id === id));
-        showToast(p.copy(lang).wornToast);
-        queueMicrotask(() => { savedActionRef.current = false; });
+      
+      // ARACHNE_P4_USAGE_HANDLERS_START
+      useEffect(() => {
+        const presentation = window.__ARACHNE_PRESENTATION__;
+        if (!isAuthenticated || !inventoryReady || !presentation?.createUsageSession) {
+          setUsageLedger(null);
+          setUsageSelection(null);
+          return;
+        }
+        setUsageLedger(presentation.createUsageSession(history));
+        setUsageSelection(null);
+      }, [isAuthenticated, inventoryReady]);
+
+      const openUsagePanel = (outfit) => {
+        const presentation = window.__ARACHNE_PRESENTATION__;
+        if (!presentation || !usageLedger || !outfit || usageBusy) return;
+        const state = presentation.usageState(usageLedger, outfit);
+        if (state.recorded) { showToast(USAGE_COPY[lang].already); return; }
+        setUsageSelection({ sourceId: outfit.id, selectedIds: new Set(presentation.usageOutfitGarmentIds(outfit)) });
       };
+
+      const toggleUsageGarment = (garmentId) => {
+        if (!usageSelection || usageBusy) return;
+        setUsageSelection(previous => {
+          const selectedIds = new Set(previous.selectedIds);
+          if (selectedIds.has(garmentId)) selectedIds.delete(garmentId);
+          else selectedIds.add(garmentId);
+          return { ...previous, selectedIds };
+        });
+      };
+
+      const confirmUsageFor = (outfit) => {
+        const presentation = window.__ARACHNE_PRESENTATION__;
+        if (!presentation || !usageLedger || !outfit || usageBusy) return;
+        if (!usageSelection || usageSelection.sourceId !== outfit.id) return;
+        const selectedIds = [...usageSelection.selectedIds];
+        if (!selectedIds.length) { showToast(USAGE_COPY[lang].empty); return; }
+        setUsageBusy(true);
+        const result = presentation.confirmUsage(usageLedger, wardrobe, outfit, selectedIds);
+        setUsageBusy(false);
+        if (!result.ok) {
+          showToast(result.reason === 'empty_selection' ? USAGE_COPY[lang].empty : USAGE_COPY[lang].unavailable);
+          return;
+        }
+        if (result.duplicate) { showToast(USAGE_COPY[lang].already); return; }
+        setUsageLedger(result.ledger);
+        setWardrobe(result.wardrobe);
+        showToast(USAGE_COPY[lang].recorded);
+      };
+
+      const revertUsageFor = (outfit) => {
+        const presentation = window.__ARACHNE_PRESENTATION__;
+        if (!presentation || !usageLedger || !outfit || usageBusy) return;
+        setUsageBusy(true);
+        const result = presentation.undoUsage(usageLedger, wardrobe, outfit);
+        setUsageBusy(false);
+        if (!result.ok) { showToast(USAGE_COPY[lang].unavailable); return; }
+        if (result.duplicate) return;
+        setUsageLedger(result.ledger);
+        setWardrobe(result.wardrobe);
+        const state = presentation.usageState(result.ledger, outfit);
+        setUsageSelection({ sourceId: outfit.id, selectedIds: new Set(state.recorded ? state.garmentIds : presentation.usageOutfitGarmentIds(outfit)) });
+        showToast(USAGE_COPY[lang].reverted);
+      };
+
+      const usagePanelOutfit = (() => {
+        if (!usageSelection) return null;
+        if (inspectedLook && usageSelection.sourceId === inspectedLook.id) return inspectedLook;
+        if (currentOutfit && usageSelection.sourceId === currentOutfit.id) return currentOutfit;
+        return null;
+      })();
+
+      const renderUsagePanel = (outfit) => {
+        const presentation = window.__ARACHNE_PRESENTATION__;
+        const copy = USAGE_COPY[lang] || USAGE_COPY.es;
+        if (!presentation || !usageLedger || !outfit) return null;
+        const state = presentation.usageState(usageLedger, outfit);
+        const garments = presentation.usageOutfitGarments(outfit);
+        const selectedIds = state.recorded ? new Set(state.garmentIds) : (usageSelection?.sourceId === outfit.id ? usageSelection.selectedIds : new Set());
+        return (
+          <div className="mt-3 p-3 rounded-xl border border-arachne-border bg-arachne-surface space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-arachne-terracotta">{copy.title}</span>
+              <span className={'text-[10px] font-semibold px-2 py-0.5 rounded-full ' + (state.recorded ? 'bg-red-50 text-red-700' : 'bg-arachne-sageLight text-arachne-sage')}>
+                {state.recorded ? copy.notUsed : copy.used}
+              </span>
+            </div>
+            {!state.recorded && <p className="text-[11px] text-arachne-inkMuted">{copy.hint}</p>}
+            <div className="space-y-1.5">
+              {garments.map(garment => {
+                const isSelected = selectedIds.has(garment.id);
+                return (
+                  <button key={garment.id} type="button" disabled={state.recorded || usageBusy}
+                    onClick={() => toggleUsageGarment(garment.id)}
+                    className={'w-full flex items-center justify-between gap-2 p-2 rounded-lg border text-left transition-colors ' + (isSelected ? 'border-arachne-sage bg-arachne-sageLight' : 'border-arachne-border bg-white')}>
+                    <span className="text-[11px] font-medium text-arachne-ink truncate">
+                      {typeof garment.name === 'string' ? garment.name : garment.name?.[lang] || garment.id}
+                    </span>
+                    <span className={'text-[10px] font-bold px-2 py-0.5 rounded-full ' + (isSelected ? 'bg-arachne-sage text-white' : 'bg-arachne-surface text-arachne-inkMuted')}>
+                      {isSelected ? copy.used : copy.notUsed}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            {state.recorded ? (
+              <button type="button" onClick={() => revertUsageFor(outfit)} disabled={usageBusy}
+                className="w-full py-2.5 rounded-xl text-xs font-semibold bg-red-600 text-white disabled:opacity-50">
+                {copy.revert}
+              </button>
+            ) : (
+              <button type="button" onClick={() => confirmUsageFor(outfit)} disabled={usageBusy || selectedIds.size === 0}
+                className="w-full py-2.5 rounded-xl text-xs font-semibold bg-arachne-sage text-white disabled:opacity-50">
+                {copy.confirm}
+              </button>
+            )}
+          </div>
+        );
+      };
+      // ARACHNE_P4_USAGE_HANDLERS_END
 
       //      // Ingesta de fotos con compresión WebP
       const handleImageFile = (file) => {
@@ -2095,6 +2216,12 @@
                   className="w-full bg-arachne-ink text-white py-3 rounded-xl text-sm font-semibold disabled:opacity-50">
                   {window.__ARACHNE_PRESENTATION__?.saved(history, currentOutfit) ? window.__ARACHNE_PRESENTATION__?.copy(lang).saved : window.__ARACHNE_PRESENTATION__?.copy(lang).save}
                 </button>
+                <button type="button" onClick={() => openUsagePanel(currentOutfit)}
+                  disabled={usageBusy || !usageLedger}
+                  className="w-full bg-arachne-sage text-white py-3 rounded-xl text-sm font-semibold disabled:opacity-50">
+                  {(USAGE_COPY[lang] || USAGE_COPY.es).open}
+                </button>
+                {usagePanelOutfit && usagePanelOutfit.id === currentOutfit.id && renderUsagePanel(currentOutfit)}
               </div>
             )}
 
@@ -2262,7 +2389,7 @@
                   </div>
                   <div className="bg-white p-3 rounded-xl border border-arachne-border text-center shadow-subtle">
                     <span className="text-[10px] uppercase font-bold text-arachne-inkMuted block">{t.confirmedOutfitsMetric}</span>
-                    <span className="font-serif text-xl font-bold text-arachne-sage">{window.__ARACHNE_PRESENTATION__?.wearCount(history) ?? 0}</span>
+                    <span className="font-serif text-xl font-bold text-arachne-sage">{window.__ARACHNE_PRESENTATION__?.profileWearCount(usageLedger, history) ?? 0}</span>
                   </div>
                   <div className="bg-white p-3 rounded-xl border border-arachne-border text-center shadow-subtle">
                     <span className="text-[10px] uppercase font-bold text-arachne-inkMuted block">{t.closetPiecesMetric}</span>
@@ -2945,11 +3072,7 @@
                   </button>
                 </div>
 
-              <button type="button" onClick={() => handleMarkSavedWorn(inspectedLook.id)}
-                  disabled={window.__ARACHNE_PRESENTATION__?.wornToday(inspectedLook) || !window.__ARACHNE_PRESENTATION__?.canUse(inspectedLook, wardrobe)}
-                  className="w-full bg-arachne-ink text-white py-3 rounded-xl text-xs font-semibold disabled:opacity-50">
-                  {window.__ARACHNE_PRESENTATION__?.wornToday(inspectedLook) ? window.__ARACHNE_PRESENTATION__?.copy(lang).worn : window.__ARACHNE_PRESENTATION__?.copy(lang).wear}
-                </button></div>
+              {renderUsagePanel(inspectedLook)}</div>
             </div>
           )}
 

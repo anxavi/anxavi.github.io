@@ -1,3 +1,15 @@
+import {
+  createUsageLedger,
+  registerUsage,
+  revokeUsage,
+  usageRecord,
+  garmentUsedOn,
+  outfitUseCount,
+  usageGarments,
+  outfitUsageId,
+  localDay
+} from './usage.js';
+
 const COPY = {
  es:{save:'Guardar outfit',saved:'Outfit guardado',savedToast:'Outfit añadido a Guardados.',wear:'Me lo puse hoy',worn:'Uso registrado hoy',wornToast:'Uso registrado y contadores actualizados.',unavailable:'Este look contiene prendas no disponibles. Revisa tu armario.',overview:'Evaluación orientativa',sub:'Una estimación basada en los datos de tus prendas, no una garantía de estilo.',empty:'Los outfits que guardes aparecerán aquí.',historySub:'Tus combinaciones guardadas. Registrar su uso es una acción independiente.',partial:'La información de este apartado es parcial.',missing:'No hay datos suficientes para valorar este aspecto.',noPreference:'No has solicitado una preferencia concreta.',noComfort:'No se ha evaluado la comodidad para esta ocasión.',savedDate:'Guardado',labels:{formality:'Adecuación a la ocasión',thermal:'Confort térmico',color:'Combinación de colores',preferences:'Preferencias',rotation:'Rotación del armario',comfort:'Comodidad'},reasons:{formality:'Encaje con la ocasión elegida.',thermal:'Encaje con la temperatura y el tiempo indicados.',color:'Relación entre las familias de color registradas.',preferences:'Encaje con el ajuste solicitado.',rotation:'Rotación según los usos registrados.',comfort:'Comodidad según los atributos disponibles.'},occasions:{office:'la oficina',casual:'un plan informal',dinner:'una cena',weekend:'el fin de semana',gym:'el gimnasio',party:'una salida nocturna'}},
  en:{save:'Save outfit',saved:'Outfit saved',savedToast:'Outfit added to Saved.',wear:'Wore this today',worn:'Wear recorded today',wornToast:'Wear recorded and counters updated.',unavailable:'This look contains unavailable garments. Review your wardrobe.',overview:'Indicative assessment',sub:'An estimate based on your garment data, not a style guarantee.',empty:'Outfits you save will appear here.',historySub:'Your saved combinations. Recording wear is a separate action.',partial:'Information for this aspect is incomplete.',missing:'Not enough data to assess this aspect.',noPreference:'No specific preference was requested.',noComfort:'Comfort was not assessed for this occasion.',savedDate:'Saved',labels:{formality:'Occasion suitability',thermal:'Thermal comfort',color:'Color coordination',preferences:'Preferences',rotation:'Wardrobe rotation',comfort:'Comfort'},reasons:{formality:'Fit for the selected occasion.',thermal:'Fit for the specified temperature and weather.',color:'Relationship between recorded color families.',preferences:'Fit for the requested adjustment.',rotation:'Rotation based on recorded wear.',comfort:'Comfort based on available attributes.'},occasions:{office:'the office',casual:'a casual plan',dinner:'dinner',weekend:'the weekend',gym:'the gym',party:'a night out'}},
@@ -75,3 +87,32 @@ export function dateLabel(look,lang){
  return copy(lang).savedDate+' · '+new Intl.DateTimeFormat(({es:'es-ES',en:'en-GB',ca:'ca-ES'})[lang]||'es-ES',{day:'numeric',month:'short'}).format(new Date(look.savedAt));
 }
 export function occasionLabel(look,lang){return copy(lang).occasions[look?.occasionKey]||look?.occasion||'';}
+
+// ARACHNE_P4_PRESENTATION_START
+export function createUsageSession(history = []) {
+  return createUsageLedger(wearCount(history));
+}
+export function usageState(ledger, outfit, day = localDay()) {
+  const record = usageRecord(ledger, outfit, day);
+  return {
+    recorded: Boolean(record),
+    garmentIds: record ? record.garmentIds : [],
+    outfitId: outfitUsageId(outfit)
+  };
+}
+export function usageOutfitGarments(outfit) {
+  return usageGarments(outfit);
+}
+export function usageOutfitGarmentIds(outfit) {
+  return usageGarments(outfit).map(garment => garment.id);
+}
+export function confirmUsage(ledger, wardrobe, outfit, garmentIds, day = localDay()) {
+  return registerUsage(ledger, wardrobe, outfit, garmentIds, day);
+}
+export function undoUsage(ledger, wardrobe, outfit, day = localDay()) {
+  return revokeUsage(ledger, wardrobe, outfit, day);
+}
+export function profileWearCount(ledger, history = []) {
+  return ledger ? outfitUseCount(ledger) : wearCount(history);
+}
+// ARACHNE_P4_PRESENTATION_END
