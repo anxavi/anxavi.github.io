@@ -1,0 +1,125 @@
+name: Apply P5 saved deletion
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: arachne-p5-saved-delete
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Guard exact P4 base and support-only commit
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = 37a05a6d64f6f3d636eb5b8ccb3821ea24033242
+          python3 - <<'PY'
+          import subprocess
+          expected = {'.github/workflows/apply-p5-saved-delete.yml', '.github/patches/p5-saved-delete.patch'}
+          changed = set(subprocess.check_output(['git','diff','--name-only','HEAD^','HEAD'], text=True).splitlines())
+          assert changed == expected, changed
+          PY
+          test "$(git hash-object index.html)" = 2142d0bd6d20e2d50d4864eaf2d33560bb00cec9
+          test "$(git hash-object index-preview.html)" = 11d04106548570ce57b655820fb171cb86d31d57
+          test "$(git hash-object src/engine/presentation.js)" = a562b7ff67dd584d72352b3aeb52468c6be0e226
+          test "$(git hash-object src/engine/usage.js)" = 27a667c67a8969325f8cfff7c71348b124e07afe
+          test "$(git hash-object src/engine/browser.js)" = 0709fc882c77d59d3ec4e838507ad30e6330897b
+          test ! -e src/engine/saved.js
+          test ! -e test/p5-saved-delete.test.mjs
+      - name: Apply P5 patch
+        run: |
+          set -euo pipefail
+          git apply --check .github/patches/p5-saved-delete.patch
+          git apply .github/patches/p5-saved-delete.patch
+          test "$(git hash-object index-preview.html)" = 4846466897869fd0869e6364b3ba9eab201ba7d4
+      - name: Verify preserved blocks and module syntax
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import subprocess
+          from pathlib import Path
+          before = subprocess.check_output(['git','show','HEAD:index-preview.html'], text=True)
+          after = Path('index-preview.html').read_text()
+          blocks = [(2,'FABRIC'),(3,'DETAIL'),(4,'USAGE'),(4,'USAGE_STATE'),(4,'USAGE_HANDLERS')]
+          for phase, name in blocks:
+              start = f'// ARACHNE_P{phase}_{name}_START'
+              end = f'// ARACHNE_P{phase}_{name}_END'
+              assert before.count(start) == after.count(start) == 1
+              assert before.count(end) == after.count(end) == 1
+              assert before.split(start)[1].split(end)[0] == after.split(start)[1].split(end)[0], name
+          PY
+          for file in src/engine/*.js src/ui/*.js; do
+            test -f "$file" || continue
+            node --input-type=module --check < "$file"
+          done
+          node --input-type=module -e "const p = await import('./src/engine/presentation.js'); if (typeof p.removeSavedLook !== 'function') throw new Error('Missing P5 export');"
+      - name: Parse complete preview JSX in temporary environment
+        run: |
+          set -euo pipefail
+          npm install --prefix "$RUNNER_TEMP/p5-parser" --no-audit --no-fund --ignore-scripts --package-lock=false @babel/parser@7
+          node <<'JS'
+          const fs = require('node:fs');
+          const parser = require(process.env.RUNNER_TEMP + '/p5-parser/node_modules/@babel/parser');
+          const html = fs.readFileSync('index-preview.html', 'utf8');
+          const scripts = [...html.matchAll(/<script\b[^>]*type=["']text\/babel["'][^>]*>([\s\S]*?)<\/script>/g)];
+          if (scripts.length !== 1) throw new Error('Expected one complete JSX script');
+          parser.parse(scripts[0][1], {sourceType:'script', plugins:['jsx']});
+          console.log('Complete preview JSX parsed successfully');
+          JS
+      - name: Run all tests in test directory
+        run: |
+          set -euo pipefail
+          node --test --test-reporter=tap test/*.test.mjs | tee "$RUNNER_TEMP/p5-tests.tap"
+      - name: Verify exact scope and commit P5
+        run: |
+          set -euo pipefail
+          test "$(git hash-object index.html)" = 2142d0bd6d20e2d50d4864eaf2d33560bb00cec9
+          test "$(git hash-object src/engine/usage.js)" = 27a667c67a8969325f8cfff7c71348b124e07afe
+          test "$(git hash-object src/engine/browser.js)" = 0709fc882c77d59d3ec4e838507ad30e6330897b
+          git add -- index-preview.html src/engine/presentation.js src/engine/saved.js test/p5-saved-delete.test.mjs
+          python3 - <<'PY'
+          import subprocess
+          expected = {'index-preview.html','src/engine/presentation.js','src/engine/saved.js','test/p5-saved-delete.test.mjs'}
+          staged = set(subprocess.check_output(['git','diff','--cached','--name-only'], text=True).splitlines())
+          assert staged == expected, staged
+          unstaged = subprocess.check_output(['git','diff','--name-only'], text=True).strip()
+          untracked = subprocess.check_output(['git','ls-files','--others','--exclude-standard'], text=True).strip()
+          assert not unstaged and not untracked, (unstaged,untracked)
+          PY
+          git fetch origin main
+          test "$(git rev-parse origin/main)" = "$(git rev-parse HEAD)"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Add saved-outfit deletion while preserving usage ledger [skip ci]'
+          git push origin HEAD:main
+          echo "P5 commit: $(git rev-parse HEAD)" >> "$GITHUB_STEP_SUMMARY"
+          echo 'P5 committed. No Pages build requested; publication and visual acceptance remain separate.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Report validation outcome
+        if: always()
+        run: |
+          {
+            echo '## P5 saved deletion'
+            echo 'No Copilot and no previous application workflows were invoked.'
+            if test -f "$RUNNER_TEMP/p5-tests.tap"; then
+              grep -E '^# (tests|pass|fail|cancelled|skipped) ' "$RUNNER_TEMP/p5-tests.tap" || true
+            else
+              echo 'Tests not reached; inspect previous steps.'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
