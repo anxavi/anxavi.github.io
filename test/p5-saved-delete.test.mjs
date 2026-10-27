@@ -1,0 +1,88 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { runInNewContext } from 'node:vm';
+import { removeSavedLook } from '../src/engine/saved.js';
+import { createUsageLedger, registerUsage, revokeUsage, outfitUseCount, usageRecord } from '../src/engine/usage.js';
+const html = readFileSync(new URL('../index-preview.html', import.meta.url), 'utf8');
+function block(name) {
+  const start = '// ARACHNE_P5_SAVED_DELETE_' + name + '_START';
+  const end = '// ARACHNE_P5_SAVED_DELETE_' + name + '_END';
+  assert.equal(html.split(start).length, 2);
+  assert.equal(html.split(end).length, 2);
+  return html.split(start)[1].split(end)[0];
+}
+function harness(options = {}) {
+  const a = {id:'saved_a',sourceOutfitId:'a',tags:['office']};
+  const state = {history:[a,{id:'saved_b',sourceOutfitId:'b'}],inspectedLook:a,newTagInput:'pending',
+    usageSelection:{sourceId:'saved_a',selectedIds:new Set(['g1'])},ledger:createUsageLedger(3),
+    wardrobe:[{id:'g1',timesWorn:5}],currentOutfit:{id:'a'},generatedCount:4,...options.state};
+  const confirms = [], toasts = [], microtasks = [];
+  const context = {
+    window:{__ARACHNE_PRESENTATION__:{removeSavedLook},confirm:message=>{confirms.push(message);return options.confirm ?? true;}},
+    useRef:current=>({current}),usageLedger:state.ledger,usageBusy:options.busy ?? false,
+    savedActionRef:{current:options.saving ?? false},history:state.history,lang:options.lang ?? 'es',inspectedLook:state.inspectedLook,
+    setHistory:fn=>{state.history=fn(state.history);},setInspectedLook:value=>{state.inspectedLook=value;},
+    setNewTagInput:value=>{state.newTagInput=value;},setUsageSelection:fn=>{state.usageSelection=fn(state.usageSelection);},
+    showToast:message=>toasts.push(message),queueMicrotask:fn=>microtasks.push(fn)
+  };
+  const remove = runInNewContext(block('COPY')+'\n'+block('HANDLERS')+'\nhandleDeleteSavedLook;',context);
+  return {state,confirms,toasts,microtasks,remove};
+}
+test('exact ID only; other objects and original frozen array preserved',()=>{
+  const a={id:'saved_a'},b={id:'saved_b'},history=Object.freeze([a,b]);
+  const next=removeSavedLook(history,'saved_a');assert.deepEqual(next,[b]);assert.equal(next[0],b);assert.equal(history.length,2);
+});
+test('sourceOutfitId is not a saved ID',()=>{const h=[{id:'saved_a',sourceOutfitId:'a'}];assert.equal(removeSavedLook(h,'a'),h);});
+test('another copy with the same source remains',()=>{
+  const a={id:'saved_a',sourceOutfitId:'a'},b={id:'copy_a',sourceOutfitId:'a'};assert.deepEqual(removeSavedLook([a,b],'saved_a'),[b]);
+});
+test('historical seed deletion',()=>assert.deepEqual(removeSavedLook([{id:'hist_01'}],'hist_01'),[]));
+test('unknown ID is no-op',()=>{const h=[{id:'a'}];assert.equal(removeSavedLook(h,'missing'),h);});
+test('invalid IDs are no-op',()=>{const h=[{id:'a'}];for(const id of [null,undefined,0,'',' '])assert.equal(removeSavedLook(h,id),h);});
+test('duplicate IDs fail closed',()=>{const h=[{id:'a'},{id:'a'}];assert.equal(removeSavedLook(h,'a'),h);});
+test('last deletion and repeat are safe',()=>{const h=removeSavedLook([{id:'a'}],'a');assert.deepEqual(h,[]);assert.equal(removeSavedLook(h,'a'),h);});
+test('invalid history throws',()=>{for(const h of [null,undefined,{},1])assert.throws(()=>removeSavedLook(h,'x'),TypeError);});
+test('cancel preserves every state reference',()=>{
+  const h=harness({confirm:false}),before={...h.state};h.remove('saved_a');
+  for(const key of Object.keys(before))assert.equal(h.state[key],before[key]);assert.equal(h.toasts.length,0);
+});
+test('confirm removes only chosen entry and clears its detail and temporary state',()=>{
+  const h=harness(),before={...h.state};h.remove('saved_a');assert.deepEqual(h.state.history.map(x=>x.id),['saved_b']);
+  assert.equal(h.state.inspectedLook,null);assert.equal(h.state.newTagInput,'');assert.equal(h.state.usageSelection,null);assert.equal(h.toasts.length,1);
+  for(const key of ['ledger','wardrobe','currentOutfit','generatedCount'])assert.equal(h.state[key],before[key]);
+});
+test('active-outfit selection remains',()=>{
+  const selection={sourceId:'a',selectedIds:new Set(['g1'])},h=harness({state:{usageSelection:selection}});h.remove('saved_a');assert.equal(h.state.usageSelection,selection);
+});
+test('other detail and tag input remain',()=>{
+  const inspected={id:'saved_b'},h=harness({state:{inspectedLook:inspected}});h.remove('saved_a');assert.equal(h.state.inspectedLook,inspected);assert.equal(h.state.newTagInput,'pending');
+});
+test('wait for ledger initialization',()=>{const h=harness({state:{ledger:null}});h.remove('saved_a');assert.equal(h.confirms.length,0);assert.equal(h.state.history.length,2);});
+test('block during usage or saved action',()=>{for(const o of [{busy:true},{saving:true}]){const h=harness(o);h.remove('saved_a');assert.equal(h.confirms.length,0);}});
+test('immediate double click is locked',()=>{const h=harness();h.remove('saved_a');h.remove('saved_a');assert.equal(h.confirms.length,1);assert.equal(h.toasts.length,1);});
+test('ES EN CA localized confirmation and notification',()=>{
+  const messages=[];for(const lang of ['es','en','ca']){const h=harness({lang});h.remove('saved_a');assert.equal(h.toasts.length,1);messages.push(h.confirms[0]);}assert.equal(new Set(messages).size,3);
+});
+test('unknown language falls back to Spanish',()=>{
+  const a=harness({lang:'unknown'}),b=harness({lang:'es'});a.remove('saved_a');b.remove('saved_a');assert.equal(a.confirms[0],b.confirms[0]);
+});
+test('deletion and resaving cannot duplicate daily usage',()=>{
+  const g={id:'g1',category:'top',state:'available',timesWorn:5},outfit={id:'a',garments:[g]};
+  const registered=registerUsage(createUsageLedger(3),[g],outfit,['g1'],'2026-10-24');assert.equal(registered.ok,true);
+  const h=harness({state:{ledger:registered.ledger,wardrobe:registered.wardrobe,currentOutfit:outfit}});h.remove('saved_a');
+  assert.equal(outfitUseCount(h.state.ledger),4);assert.equal(h.state.wardrobe[0].timesWorn,6);
+  const repeated=registerUsage(h.state.ledger,h.state.wardrobe,{...outfit,id:'saved_a',sourceOutfitId:'a'},['g1'],'2026-10-24');
+  assert.equal(repeated.ok,true);assert.equal(repeated.duplicate,true);assert.equal(repeated.wardrobe[0].timesWorn,6);
+  assert.equal(usageRecord(h.state.ledger,outfit,'2026-10-24'),registered.entry);
+});
+test('shared garment remains counted after deletion',()=>{
+  const g={id:'g1',category:'top',state:'available',timesWorn:0},a={id:'a',garments:[g]},b={id:'b',garments:[g]};
+  const first=registerUsage(createUsageLedger(),[g],a,['g1'],'2026-10-24'),second=registerUsage(first.ledger,first.wardrobe,b,['g1'],'2026-10-24');
+  const h=harness({state:{ledger:second.ledger,wardrobe:second.wardrobe}});h.remove('saved_a');assert.equal(h.state.wardrobe[0].timesWorn,1);assert.equal(outfitUseCount(h.state.ledger),2);
+  assert.equal(revokeUsage(h.state.ledger,h.state.wardrobe,a,'2026-10-24').wardrobe[0].timesWorn,1);
+});
+test('no activity reset in handler; button is guarded',()=>{
+  assert.doesNotMatch(block('HANDLERS'),/setUsageLedger|setWardrobe|setCurrentOutfit|undoUsage|createUsageSession|setGeneratedCount/);
+  assert.match(html,/data-p5-delete-saved/);assert.match(html,/disabled=\{!usageLedger \|\| usageBusy\}/);
+});

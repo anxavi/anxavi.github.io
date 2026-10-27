@@ -116,3 +116,5 @@ export function profileWearCount(ledger, history = []) {
   return ledger ? outfitUseCount(ledger) : wearCount(history);
 }
 // ARACHNE_P4_PRESENTATION_END
+
+export { removeSavedLook } from './saved.js';

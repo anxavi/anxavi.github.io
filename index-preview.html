@@ -157,6 +157,14 @@
       };
       // ARACHNE_P4_USAGE_END
 
+    // ARACHNE_P5_SAVED_DELETE_COPY_START
+    const SAVED_DELETE_COPY = {
+      es: {action: 'Eliminar de Guardados', confirm: '¿Eliminar esta combinación de Guardados? Sus usos registrados y los contadores de tus prendas se conservarán.', done: 'Combinación eliminada de Guardados. Usos y contadores conservados.'},
+      en: {action: 'Remove from Saved', confirm: 'Remove this combination from Saved? Its recorded wear and your garment counters will be preserved.', done: 'Combination removed from Saved. Wear records and counters preserved.'},
+      ca: {action: 'Elimina de Desats', confirm: 'Vols eliminar aquesta combinació de Desats? Els usos registrats i els comptadors de les peces es conservaran.', done: 'Combinació eliminada de Desats. Usos i comptadors conservats.'}
+    };
+    // ARACHNE_P5_SAVED_DELETE_COPY_END
+
 
     // =========================================================================
     // 1. SISTEMA DE ICONOGRAFÍA SVG EDITORIAL REDISEÑADO & ICONOS NATIVOS
@@ -1412,6 +1420,30 @@
         queueMicrotask(() => { savedActionRef.current = false; });
       };
       
+      // ARACHNE_P5_SAVED_DELETE_HANDLERS_START
+      const deleteSavedActionRef = useRef(false);
+      const handleDeleteSavedLook = (savedId) => {
+        const presentation = window.__ARACHNE_PRESENTATION__;
+        if (!presentation?.removeSavedLook || !usageLedger || usageBusy ||
+            savedActionRef.current || deleteSavedActionRef.current) return;
+        if (history.filter(entry => entry?.id === savedId).length !== 1) return;
+        const copy = SAVED_DELETE_COPY[lang] || SAVED_DELETE_COPY.es;
+        if (!window.confirm(copy.confirm)) return;
+        deleteSavedActionRef.current = true;
+        try {
+          setHistory(previous => presentation.removeSavedLook(previous, savedId));
+          if (inspectedLook?.id === savedId) {
+            setInspectedLook(null);
+            setNewTagInput('');
+          }
+          setUsageSelection(previous => previous?.sourceId === savedId ? null : previous);
+          showToast(copy.done);
+        } finally {
+          queueMicrotask(() => { deleteSavedActionRef.current = false; });
+        }
+      };
+      // ARACHNE_P5_SAVED_DELETE_HANDLERS_END
+
       // ARACHNE_P4_USAGE_HANDLERS_START
       useEffect(() => {
         const presentation = window.__ARACHNE_PRESENTATION__;
@@ -3072,6 +3104,14 @@
                   </button>
                 </div>
 
+              {/* ARACHNE_P5_SAVED_DELETE_BUTTON_START */}
+              <button type="button" data-p5-delete-saved
+                onClick={() => handleDeleteSavedLook(inspectedLook.id)}
+                disabled={!usageLedger || usageBusy}
+                className="w-full py-2.5 rounded-xl text-xs font-semibold border border-red-200 bg-red-50 text-red-700 disabled:opacity-50">
+                {(SAVED_DELETE_COPY[lang] || SAVED_DELETE_COPY.es).action}
+              </button>
+              {/* ARACHNE_P5_SAVED_DELETE_BUTTON_END */}
               {renderUsagePanel(inspectedLook)}</div>
             </div>
           )}
